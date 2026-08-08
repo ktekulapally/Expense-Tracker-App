@@ -40,7 +40,7 @@ class SupabaseService {
     if (ledgerId != null) {
       query = query.eq('ledger_id', ledgerId);
     } else {
-      query = query.is_('ledger_id', null);
+      query = query.isFilter('ledger_id', null);
     }
     final data = await query.order('expense_date', ascending: false).order('created_at', ascending: false);
     return (data as List).map((json) => Expense.fromJson(json)).toList();
@@ -64,7 +64,7 @@ class SupabaseService {
     if (ledgerId != null) {
       query = query.eq('ledger_id', ledgerId);
     } else {
-      query = query.is_('ledger_id', null);
+      query = query.isFilter('ledger_id', null);
     }
     final data = await query.order('income_date', ascending: false).order('created_at', ascending: false);
     return (data as List).map((json) => Income.fromJson(json)).toList();
