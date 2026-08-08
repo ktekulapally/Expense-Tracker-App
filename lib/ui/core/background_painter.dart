@@ -59,7 +59,6 @@ class BackgroundPainter extends CustomPainter {
     paint.strokeWidth = 0.8;
     
     // Draw lines along diagonal paths
-    final double maxDim = size.width + size.height;
     for (double offset = -size.height; offset < size.width; offset += spacing) {
       canvas.drawLine(
         Offset(offset, 0),
@@ -123,12 +122,27 @@ class ThemeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = AppTheme.getColors(tab);
-    return Container(
-      color: colors.paper,
-      child: CustomPaint(
-        painter: BackgroundPainter(tab: tab, colors: colors),
-        child: child,
-      ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(color: colors.paper),
+        ),
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.05,
+            child: Image.asset(
+              'assets/images/logo.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: CustomPaint(
+            painter: BackgroundPainter(tab: tab, colors: colors),
+          ),
+        ),
+        Positioned.fill(child: child),
+      ],
     );
   }
 }

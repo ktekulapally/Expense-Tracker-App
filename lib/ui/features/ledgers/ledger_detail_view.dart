@@ -447,205 +447,208 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
 
   Widget _buildExpensesView(
       CustomLedgerDetailViewModel vm, String userId, List<Expense> expList, AppThemeColors colors) {
-    return Column(
-      children: [
-        // Add expense card
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Container(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Add expense card
+          Padding(
             padding: const EdgeInsets.all(12),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _editingExpense != null ? "Edit expense" : "Add an expense",
-                  style: AppTheme.getSubHeadingStyle(colors, size: 15),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: "Date",
-                        controller: _expDateController,
-                        readOnly: true,
-                        onTap: () => _selectExpDate(context),
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Amount",
-                        placeholder: "0.00",
-                        controller: _expAmountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Category",
-                            style: AppTheme.getBodyStyle(colors, soft: true, size: 11, weight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: colors.paperLine),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedCategory,
-                                isExpanded: true,
-                                style: AppTheme.getBodyStyle(colors, size: 14),
-                                items: [
-                                  if (vm.categories.isEmpty)
-                                    const DropdownMenuItem(value: null, child: Text('No categories yet')),
-                                  ...vm.categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
-                                  const DropdownMenuItem(value: '__add_new__', child: Text('+ Add new category…')),
-                                ],
-                                onChanged: (val) {
-                                  if (val == '__add_new__') {
-                                    setState(() => _showNewCategoryField = true);
-                                  } else {
-                                    setState(() {
-                                      _selectedCategory = val;
-                                      _showNewCategoryField = false;
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Note",
-                        placeholder: "Optional note",
-                        controller: _expDescController,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Inline New Category Input
-                if (_showNewCategoryField) ...[
-                  const SizedBox(height: 12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _editingExpense != null ? "Edit expense" : "Add an expense",
+                    style: AppTheme.getSubHeadingStyle(colors, size: 15),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Expanded(
                         child: AppTextField(
-                          label: "New Category Name",
-                          placeholder: "e.g. Fertilizer",
-                          controller: _newCategoryController,
+                          label: "Date",
+                          controller: _expDateController,
+                          readOnly: true,
+                          onTap: () => _selectExpDate(context),
                           colors: colors,
                         ),
                       ),
                       const SizedBox(width: 10),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Amount",
+                          placeholder: "0.00",
+                          controller: _expAmountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          colors: colors,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Category",
+                              style: AppTheme.getBodyStyle(colors, soft: true, size: 11, weight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: colors.paperLine),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _selectedCategory,
+                                  isExpanded: true,
+                                  style: AppTheme.getBodyStyle(colors, size: 14),
+                                  items: [
+                                    if (vm.categories.isEmpty)
+                                      const DropdownMenuItem(value: null, child: Text('No categories yet')),
+                                    ...vm.categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
+                                    const DropdownMenuItem(value: '__add_new__', child: Text('+ Add new category…')),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val == '__add_new__') {
+                                      setState(() => _showNewCategoryField = true);
+                                    } else {
+                                      setState(() {
+                                        _selectedCategory = val;
+                                        _showNewCategoryField = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Note",
+                          placeholder: "Optional note",
+                          controller: _expDescController,
+                          colors: colors,
+                        ),
+                      ),
+                    ],
+                  ),
+  
+                  // Inline New Category Input
+                  if (_showNewCategoryField) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            label: "New Category Name",
+                            placeholder: "e.g. Fertilizer",
+                            controller: _newCategoryController,
+                            colors: colors,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        AppButton(
+                          text: "Add",
+                          colors: colors,
+                          onPressed: () => _addNewCategory(userId),
+                        ),
+                      ],
+                    ),
+                  ],
+  
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_editingExpense != null) ...[
+                        AppButton(
+                          text: "Cancel",
+                          isPrimary: false,
+                          colors: colors,
+                          onPressed: _exitExpenseEdit,
+                        ),
+                        const SizedBox(width: 10),
+                      ],
                       AppButton(
-                        text: "Add",
+                        text: _editingExpense != null ? "Update" : "Add Entry",
+                        isLoading: vm.isLoading,
                         colors: colors,
-                        onPressed: () => _addNewCategory(userId),
+                        onPressed: () => _saveExpense(userId),
                       ),
                     ],
                   ),
                 ],
-
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (_editingExpense != null) ...[
-                      AppButton(
-                        text: "Cancel",
-                        isPrimary: false,
-                        colors: colors,
-                        onPressed: _exitExpenseEdit,
-                      ),
-                      const SizedBox(width: 10),
-                    ],
-                    AppButton(
-                      text: _editingExpense != null ? "Update" : "Add Entry",
-                      isLoading: vm.isLoading,
+              ),
+            ),
+          ),
+  
+          // Filters card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AppDropdownField<String>(
+                      label: "Month Filter",
+                      value: vm.expenseMonthFilter,
+                      items: [
+                        const DropdownMenuItem(value: 'all', child: Text('All months')),
+                        ...vm.expenseMonths.map((m) {
+                          final date = DateTime.parse('$m-01');
+                          final label = DateFormat('MMM yy').format(date);
+                          return DropdownMenuItem(value: m, child: Text(label));
+                        }),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) vm.setExpenseMonthFilter(val);
+                      },
                       colors: colors,
-                      onPressed: () => _saveExpense(userId),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: AppDropdownField<String>(
+                      label: "Category Filter",
+                      value: vm.expenseCategoryFilter,
+                      items: [
+                        const DropdownMenuItem(value: 'all', child: Text('All categories')),
+                        ...vm.categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) vm.setExpenseCategoryFilter(val);
+                      },
+                      colors: colors,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-
-        // Filters card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Row(
-              children: [
-                Expanded(
-                  child: AppDropdownField<String>(
-                    label: "Month Filter",
-                    value: vm.expenseMonthFilter,
-                    items: [
-                      const DropdownMenuItem(value: 'all', child: Text('All months')),
-                      ...vm.expenseMonths.map((m) {
-                        final date = DateTime.parse('$m-01');
-                        final label = DateFormat('MMM yy').format(date);
-                        return DropdownMenuItem(value: m, child: Text(label));
-                      }),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) vm.setExpenseMonthFilter(val);
-                    },
-                    colors: colors,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: AppDropdownField<String>(
-                    label: "Category Filter",
-                    value: vm.expenseCategoryFilter,
-                    items: [
-                      const DropdownMenuItem(value: 'all', child: Text('All categories')),
-                      ...vm.categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) vm.setExpenseCategoryFilter(val);
-                    },
-                    colors: colors,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // List
-        Expanded(
-          child: ListView.builder(
+  
+          const SizedBox(height: 10),
+  
+          // List
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: expList.length,
             itemBuilder: (context, index) {
@@ -698,107 +701,110 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildIncomeView(CustomLedgerDetailViewModel vm, String userId, AppThemeColors colors) {
-    return Column(
-      children: [
-        // Add income card
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Container(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Add income card
+          Padding(
             padding: const EdgeInsets.all(12),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _editingIncome != null ? "Edit income entry" : "Add income",
-                  style: AppTheme.getSubHeadingStyle(colors, size: 15),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: "Date",
-                        controller: _incDateController,
-                        readOnly: true,
-                        onTap: () => _selectIncDate(context),
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Amount",
-                        placeholder: "0.00",
-                        controller: _incAmountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Source",
-                        value: _selectedSource,
-                        items: _incomeSources.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedSource = val);
-                        },
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Notes",
-                        placeholder: "Optional notes",
-                        controller: _incNotesController,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (_editingIncome != null) ...[
-                      AppButton(
-                        text: "Cancel",
-                        isPrimary: false,
-                        colors: colors,
-                        onPressed: _exitIncomeEdit,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _editingIncome != null ? "Edit income entry" : "Add income",
+                    style: AppTheme.getSubHeadingStyle(colors, size: 15),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: "Date",
+                          controller: _incDateController,
+                          readOnly: true,
+                          onTap: () => _selectIncDate(context),
+                          colors: colors,
+                        ),
                       ),
                       const SizedBox(width: 10),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Amount",
+                          placeholder: "0.00",
+                          controller: _incAmountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          colors: colors,
+                        ),
+                      ),
                     ],
-                    AppButton(
-                      text: _editingIncome != null ? "Update" : "Add Entry",
-                      isLoading: vm.isLoading,
-                      colors: colors,
-                      onPressed: () => _saveIncome(userId),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Source",
+                          value: _selectedSource,
+                          items: _incomeSources.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedSource = val);
+                          },
+                          colors: colors,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Notes",
+                          placeholder: "Optional notes",
+                          controller: _incNotesController,
+                          colors: colors,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_editingIncome != null) ...[
+                        AppButton(
+                          text: "Cancel",
+                          isPrimary: false,
+                          colors: colors,
+                          onPressed: _exitIncomeEdit,
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      AppButton(
+                        text: _editingIncome != null ? "Update" : "Add Entry",
+                        isLoading: vm.isLoading,
+                        colors: colors,
+                        onPressed: () => _saveIncome(userId),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 10),
-
-        // List
-        Expanded(
-          child: ListView.builder(
+  
+          const SizedBox(height: 10),
+  
+          // List
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: vm.income.length,
             itemBuilder: (context, index) {
@@ -851,8 +857,8 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

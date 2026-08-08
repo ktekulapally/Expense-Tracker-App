@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/services/supabase_service.dart';
-import '../../../view_models/auth_view_model.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 

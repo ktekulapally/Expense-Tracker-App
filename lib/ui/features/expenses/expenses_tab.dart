@@ -207,240 +207,247 @@ class _ExpensesTabState extends State<ExpensesTab> {
     final userId = authVm.currentUser?.id ?? '';
     final expenseList = vm.filteredExpenses;
 
-    return Column(
-      children: [
-        // Statistics Header mimicking the web app
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              StatCard(
-                label: "Expenses — This Month",
-                value: "₹${vm.monthExpensesTotal.toStringAsFixed(2)}",
-                isPositive: false,
-                colors: colors,
-              ),
-              const SizedBox(width: 8),
-              StatCard(
-                label: "Income — This Month",
-                value: "₹${vm.monthIncomeTotal.toStringAsFixed(2)}",
-                isPositive: true,
-                colors: colors,
-              ),
-              const SizedBox(width: 8),
-              StatCard(
-                label: "Net — This Month",
-                value: "₹${vm.monthNetTotal.toStringAsFixed(2)}",
-                isPositive: vm.monthNetTotal >= 0,
-                colors: colors,
-              ),
-            ],
-          ),
-        ),
-
-        // Add/Edit Expense Form Card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Statistics Header mimicking the web app - Scrollable horizontally
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(16),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                Text(
-                  _editingExpense != null ? 'Edit expense' : 'Add an expense',
-                  style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                StatCard(
+                  label: "Expenses — This Month",
+                  value: "₹${vm.monthExpensesTotal.toStringAsFixed(2)}",
+                  isPositive: false,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: "Date",
-                        controller: _dateController,
-                        readOnly: true,
-                        onTap: () => _selectDate(context),
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Amount",
-                        placeholder: "0.00",
-                        controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        colors: colors,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                StatCard(
+                  label: "Income — This Month",
+                  value: "₹${vm.monthIncomeTotal.toStringAsFixed(2)}",
+                  isPositive: true,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Category",
-                        value: _selectedCategory,
-                        items: _categories.map((c) {
-                          return DropdownMenuItem<String>(
-                            value: c,
-                            child: Text(c),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedCategory = val);
-                          }
-                        },
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Note",
-                        placeholder: "Optional note",
-                        controller: _descController,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                StatCard(
+                  label: "Net — This Month",
+                  value: "₹${vm.monthNetTotal.toStringAsFixed(2)}",
+                  isPositive: vm.monthNetTotal >= 0,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (_editingExpense != null) ...[
-                      AppButton(
-                        text: "Cancel",
-                        isPrimary: false,
-                        colors: colors,
-                        onPressed: _exitEditMode,
+              ],
+            ),
+          ),
+  
+          // Add/Edit Expense Form Card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _editingExpense != null ? 'Edit expense' : 'Add an expense',
+                    style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: "Date",
+                          controller: _dateController,
+                          readOnly: true,
+                          onTap: () => _selectDate(context),
+                          colors: colors,
+                        ),
                       ),
                       const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Amount",
+                          placeholder: "0.00",
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          colors: colors,
+                        ),
+                      ),
                     ],
-                    AppButton(
-                      text: _editingExpense != null ? "Update entry" : "Add entry",
-                      isLoading: vm.isLoading,
-                      colors: colors,
-                      onPressed: () => _saveEntry(vm, userId),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Category",
+                          value: _selectedCategory,
+                          items: _categories.map((c) {
+                            return DropdownMenuItem<String>(
+                              value: c,
+                              child: Text(c),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedCategory = val);
+                            }
+                          },
+                          colors: colors,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Note",
+                          placeholder: "Optional note",
+                          controller: _descController,
+                          colors: colors,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_editingExpense != null) ...[
+                        AppButton(
+                          text: "Cancel",
+                          isPrimary: false,
+                          colors: colors,
+                          onPressed: _exitEditMode,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      AppButton(
+                        text: _editingExpense != null ? "Update entry" : "Add entry",
+                        isLoading: vm.isLoading,
+                        colors: colors,
+                        onPressed: () => _saveEntry(vm, userId),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Filters card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Month Filter",
-                        value: vm.expenseMonthFilter,
-                        items: [
-                          const DropdownMenuItem(value: 'all', child: Text('All months')),
-                          ...vm.expenseMonths.map((m) {
-                            final date = DateTime.parse('$m-01');
-                            final label = DateFormat('MMMM yyyy').format(date);
-                            return DropdownMenuItem(value: m, child: Text(label));
-                          }),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) vm.setExpenseMonthFilter(val);
-                        },
-                        colors: colors,
+  
+          const SizedBox(height: 16),
+  
+          // Filters card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Month Filter",
+                          value: vm.expenseMonthFilter,
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('All months')),
+                            ...vm.expenseMonths.map((m) {
+                              final date = DateTime.parse('$m-01');
+                              final label = DateFormat('MMMM yyyy').format(date);
+                              return DropdownMenuItem(value: m, child: Text(label));
+                            }),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) vm.setExpenseMonthFilter(val);
+                          },
+                          colors: colors,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Category Filter",
-                        value: vm.expenseCategoryFilter,
-                        items: [
-                          const DropdownMenuItem(value: 'all', child: Text('All categories')),
-                          ...vm.expenseCategories.map((c) {
-                            return DropdownMenuItem(value: c, child: Text(c));
-                          }),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) vm.setExpenseCategoryFilter(val);
-                        },
-                        colors: colors,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Category Filter",
+                          value: vm.expenseCategoryFilter,
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('All categories')),
+                            ...vm.expenseCategories.map((c) {
+                              return DropdownMenuItem(value: c, child: Text(c));
+                            }),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) vm.setExpenseCategoryFilter(val);
+                          },
+                          colors: colors,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  onChanged: (val) => vm.setExpenseSearch(val),
-                  decoration: InputDecoration(
-                    hintText: "Search notes or categories...",
-                    hintStyle: AppTheme.getBodyStyle(colors, soft: true, size: 13),
-                    prefixIcon: Icon(Icons.search, size: 18, color: colors.inkSoft),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    filled: true,
-                    fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: colors.paperLine),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: colors.ink),
-                      borderRadius: BorderRadius.circular(4),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    onChanged: (val) => vm.setExpenseSearch(val),
+                    decoration: InputDecoration(
+                      hintText: "Search notes or categories...",
+                      hintStyle: AppTheme.getBodyStyle(colors, soft: true, size: 13),
+                      prefixIcon: Icon(Icons.search, size: 18, color: colors.inkSoft),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      filled: true,
+                      fillColor: Colors.white,
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: colors.paperLine),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: colors.ink),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+  
+          const SizedBox(height: 12),
+  
+          // Toolbar for Exports
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton(
+                  text: "Export CSV",
+                  isGhost: true,
+                  colors: colors,
+                  onPressed: () => _exportExcel(expenseList),
+                ),
+                const SizedBox(width: 8),
+                AppButton(
+                  text: "Export PDF",
+                  isGhost: true,
+                  colors: colors,
+                  onPressed: () => _exportPdf(expenseList, colors),
                 ),
               ],
             ),
           ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Toolbar for Exports
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              AppButton(
-                text: "Export CSV",
-                isGhost: true,
-                colors: colors,
-                onPressed: () => _exportExcel(expenseList),
-              ),
-              const SizedBox(width: 8),
-              AppButton(
-                text: "Export PDF",
-                isGhost: true,
-                colors: colors,
-                onPressed: () => _exportPdf(expenseList, colors),
-              ),
-            ],
-          ),
-        ),
-
-        // List of entries
-        Expanded(
-          child: ListView.builder(
+  
+          // List of entries
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: expenseList.length,
             itemBuilder: (context, index) {
               final e = expenseList[index];
               final dateStr = DateFormat('yyyy-MM-dd').format(e.expenseDate);
-
+  
               return Card(
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -509,8 +516,8 @@ class _ExpensesTabState extends State<ExpensesTab> {
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

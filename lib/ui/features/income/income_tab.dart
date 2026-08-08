@@ -202,240 +202,247 @@ class _IncomeTabState extends State<IncomeTab> {
     final userId = authVm.currentUser?.id ?? '';
     final incomeList = vm.filteredIncome;
 
-    return Column(
-      children: [
-        // Statistics Header
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              StatCard(
-                label: "Expenses — This Month",
-                value: "₹${vm.monthExpensesTotal.toStringAsFixed(2)}",
-                isPositive: false,
-                colors: colors,
-              ),
-              const SizedBox(width: 8),
-              StatCard(
-                label: "Income — This Month",
-                value: "₹${vm.monthIncomeTotal.toStringAsFixed(2)}",
-                isPositive: true,
-                colors: colors,
-              ),
-              const SizedBox(width: 8),
-              StatCard(
-                label: "Net — This Month",
-                value: "₹${vm.monthNetTotal.toStringAsFixed(2)}",
-                isPositive: vm.monthNetTotal >= 0,
-                colors: colors,
-              ),
-            ],
-          ),
-        ),
-
-        // Add/Edit Income Form Card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Statistics Header - Scrollable horizontally
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(16),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                Text(
-                  _editingIncome != null ? 'Edit income entry' : 'Add income',
-                  style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                StatCard(
+                  label: "Expenses — This Month",
+                  value: "₹${vm.monthExpensesTotal.toStringAsFixed(2)}",
+                  isPositive: false,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppTextField(
-                        label: "Date",
-                        controller: _dateController,
-                        readOnly: true,
-                        onTap: () => _selectDate(context),
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Amount",
-                        placeholder: "0.00",
-                        controller: _amountController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        colors: colors,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                StatCard(
+                  label: "Income — This Month",
+                  value: "₹${vm.monthIncomeTotal.toStringAsFixed(2)}",
+                  isPositive: true,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Source",
-                        value: _selectedSource,
-                        items: _sources.map((s) {
-                          return DropdownMenuItem<String>(
-                            value: s,
-                            child: Text(s),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedSource = val);
-                          }
-                        },
-                        colors: colors,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppTextField(
-                        label: "Notes",
-                        placeholder: "Optional notes",
-                        controller: _notesController,
-                        colors: colors,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                StatCard(
+                  label: "Net — This Month",
+                  value: "₹${vm.monthNetTotal.toStringAsFixed(2)}",
+                  isPositive: vm.monthNetTotal >= 0,
+                  colors: colors,
+                  width: 145,
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (_editingIncome != null) ...[
-                      AppButton(
-                        text: "Cancel",
-                        isPrimary: false,
-                        colors: colors,
-                        onPressed: _exitEditMode,
+              ],
+            ),
+          ),
+  
+          // Add/Edit Income Form Card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    _editingIncome != null ? 'Edit income entry' : 'Add income',
+                    style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppTextField(
+                          label: "Date",
+                          controller: _dateController,
+                          readOnly: true,
+                          onTap: () => _selectDate(context),
+                          colors: colors,
+                        ),
                       ),
                       const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Amount",
+                          placeholder: "0.00",
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          colors: colors,
+                        ),
+                      ),
                     ],
-                    AppButton(
-                      text: _editingIncome != null ? "Update entry" : "Add entry",
-                      isLoading: vm.isLoading,
-                      colors: colors,
-                      onPressed: () => _saveEntry(vm, userId),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Source",
+                          value: _selectedSource,
+                          items: _sources.map((s) {
+                            return DropdownMenuItem<String>(
+                              value: s,
+                              child: Text(s),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _selectedSource = val);
+                            }
+                          },
+                          colors: colors,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppTextField(
+                          label: "Notes",
+                          placeholder: "Optional notes",
+                          controller: _notesController,
+                          colors: colors,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (_editingIncome != null) ...[
+                        AppButton(
+                          text: "Cancel",
+                          isPrimary: false,
+                          colors: colors,
+                          onPressed: _exitEditMode,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      AppButton(
+                        text: _editingIncome != null ? "Update entry" : "Add entry",
+                        isLoading: vm.isLoading,
+                        colors: colors,
+                        onPressed: () => _saveEntry(vm, userId),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Filters card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: AppTheme.cardDecoration(colors),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Month Filter",
-                        value: vm.incomeMonthFilter,
-                        items: [
-                          const DropdownMenuItem(value: 'all', child: Text('All months')),
-                          ...vm.incomeMonths.map((m) {
-                            final date = DateTime.parse('$m-01');
-                            final label = DateFormat('MMMM yyyy').format(date);
-                            return DropdownMenuItem(value: m, child: Text(label));
-                          }),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) vm.setIncomeMonthFilter(val);
-                        },
-                        colors: colors,
+  
+          const SizedBox(height: 16),
+  
+          // Filters card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: AppTheme.cardDecoration(colors),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Month Filter",
+                          value: vm.incomeMonthFilter,
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('All months')),
+                            ...vm.incomeMonths.map((m) {
+                              final date = DateTime.parse('$m-01');
+                              final label = DateFormat('MMMM yyyy').format(date);
+                              return DropdownMenuItem(value: m, child: Text(label));
+                            }),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) vm.setIncomeMonthFilter(val);
+                          },
+                          colors: colors,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AppDropdownField<String>(
-                        label: "Source Filter",
-                        value: vm.incomeSourceFilter,
-                        items: [
-                          const DropdownMenuItem(value: 'all', child: Text('All sources')),
-                          ...vm.incomeSources.map((s) {
-                            return DropdownMenuItem(value: s, child: Text(s));
-                          }),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) vm.setIncomeSourceFilter(val);
-                        },
-                        colors: colors,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AppDropdownField<String>(
+                          label: "Source Filter",
+                          value: vm.incomeSourceFilter,
+                          items: [
+                            const DropdownMenuItem(value: 'all', child: Text('All sources')),
+                            ...vm.incomeSources.map((s) {
+                              return DropdownMenuItem(value: s, child: Text(s));
+                            }),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) vm.setIncomeSourceFilter(val);
+                          },
+                          colors: colors,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  onChanged: (val) => vm.setIncomeSearch(val),
-                  decoration: InputDecoration(
-                    hintText: "Search notes or sources...",
-                    hintStyle: AppTheme.getBodyStyle(colors, soft: true, size: 13),
-                    prefixIcon: Icon(Icons.search, size: 18, color: colors.inkSoft),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                    filled: true,
-                    fillColor: Colors.white,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: colors.paperLine),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: colors.ink),
-                      borderRadius: BorderRadius.circular(4),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    onChanged: (val) => vm.setIncomeSearch(val),
+                    decoration: InputDecoration(
+                      hintText: "Search notes or sources...",
+                      hintStyle: AppTheme.getBodyStyle(colors, soft: true, size: 13),
+                      prefixIcon: Icon(Icons.search, size: 18, color: colors.inkSoft),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                      filled: true,
+                      fillColor: Colors.white,
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: colors.paperLine),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: colors.ink),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+  
+          const SizedBox(height: 12),
+  
+          // Export toolbar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AppButton(
+                  text: "Export CSV",
+                  isGhost: true,
+                  colors: colors,
+                  onPressed: () => _exportExcel(incomeList),
+                ),
+                const SizedBox(width: 8),
+                AppButton(
+                  text: "Export PDF",
+                  isGhost: true,
+                  colors: colors,
+                  onPressed: () => _exportPdf(incomeList, colors),
                 ),
               ],
             ),
           ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Export toolbar
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              AppButton(
-                text: "Export CSV",
-                isGhost: true,
-                colors: colors,
-                onPressed: () => _exportExcel(incomeList),
-              ),
-              const SizedBox(width: 8),
-              AppButton(
-                text: "Export PDF",
-                isGhost: true,
-                colors: colors,
-                onPressed: () => _exportPdf(incomeList, colors),
-              ),
-            ],
-          ),
-        ),
-
-        // List of entries
-        Expanded(
-          child: ListView.builder(
+  
+          // List of entries
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: incomeList.length,
             itemBuilder: (context, index) {
               final i = incomeList[index];
               final dateStr = DateFormat('yyyy-MM-dd').format(i.incomeDate);
-
+  
               return Card(
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -504,8 +511,8 @@ class _IncomeTabState extends State<IncomeTab> {
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -38,6 +38,32 @@ class _AuthViewState extends State<AuthView> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // Logo Icon
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.ink.withOpacity(0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: colors.brass,
+                        width: 2.5,
+                      ),
+                    ),
+                    child: const ClipOval(
+                      child: Image(
+                        image: AssetImage('assets/images/logo.jpg'),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   // Masthead Header style
                   Text(
                     "Daily Record",

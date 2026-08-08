@@ -6,6 +6,7 @@ class StatCard extends StatelessWidget {
   final String value;
   final bool? isPositive;
   final AppThemeColors colors;
+  final double? width;
 
   const StatCard({
     super.key,
@@ -13,6 +14,7 @@ class StatCard extends StatelessWidget {
     required this.value,
     this.isPositive,
     required this.colors,
+    this.width,
   });
 
   @override
@@ -24,32 +26,36 @@ class StatCard extends StatelessWidget {
       valColor = colors.red;
     }
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: AppTheme.cardDecoration(colors),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: AppTheme.getBodyStyle(colors, soft: true, size: 11, weight: FontWeight.w600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+    final cardChild = Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: AppTheme.cardDecoration(colors),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: AppTheme.getBodyStyle(colors, soft: true, size: 11, weight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: AppTheme.getMonoStyle(colors, size: 15, weight: FontWeight.w600).copyWith(
+              color: valColor,
             ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: AppTheme.getMonoStyle(colors, size: 16, weight: FontWeight.w600).copyWith(
-                color: valColor,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
+
+    if (width != null) {
+      return SizedBox(width: width, child: cardChild);
+    } else {
+      return Expanded(child: cardChild);
+    }
   }
 }
 
