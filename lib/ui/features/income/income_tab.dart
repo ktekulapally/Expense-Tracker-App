@@ -455,10 +455,15 @@ class _IncomeTabState extends State<IncomeTab> {
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        i.source,
-                        style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 14),
+                      Expanded(
+                        child: Text(
+                          i.source,
+                          style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 14),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         "₹${i.amount.toStringAsFixed(2)}",
                         style: AppTheme.getMonoStyle(colors, size: 14, weight: FontWeight.w600).copyWith(

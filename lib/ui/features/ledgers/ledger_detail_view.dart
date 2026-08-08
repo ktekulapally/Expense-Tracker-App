@@ -665,7 +665,15 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(e.category, style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 13)),
+                      Expanded(
+                        child: Text(
+                          e.category,
+                          style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 13),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text("₹${e.amount.toStringAsFixed(2)}",
                           style: AppTheme.getMonoStyle(colors, size: 13, weight: FontWeight.w600).copyWith(color: colors.red)),
                     ],
@@ -821,7 +829,15 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(i.source, style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 13)),
+                      Expanded(
+                        child: Text(
+                          i.source,
+                          style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 13),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text("₹${i.amount.toStringAsFixed(2)}",
                           style: AppTheme.getMonoStyle(colors, size: 13, weight: FontWeight.w600).copyWith(color: colors.green)),
                     ],

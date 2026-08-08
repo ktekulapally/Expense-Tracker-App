@@ -385,12 +385,17 @@ class _RecurringTabState extends State<RecurringTab> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              t.name,
-                              style: AppTheme.getSubHeadingStyle(colors, size: 15).copyWith(
-                                color: t.active ? colors.ink : colors.inkSoft.withOpacity(0.5),
+                            Expanded(
+                              child: Text(
+                                t.name,
+                                style: AppTheme.getSubHeadingStyle(colors, size: 15).copyWith(
+                                  color: t.active ? colors.ink : colors.inkSoft.withOpacity(0.5),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Text(
                               "₹${t.amount.toStringAsFixed(2)}",
                               style: AppTheme.getMonoStyle(colors, size: 14, weight: FontWeight.w600).copyWith(

@@ -460,10 +460,15 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   title: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        e.category,
-                        style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 14),
+                      Expanded(
+                        child: Text(
+                          e.category,
+                          style: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 14),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         "₹${e.amount.toStringAsFixed(2)}",
                         style: AppTheme.getMonoStyle(colors, size: 14, weight: FontWeight.w600).copyWith(
