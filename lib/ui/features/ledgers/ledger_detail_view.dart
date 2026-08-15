@@ -10,6 +10,8 @@ import 'package:open_file/open_file.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../data/models.dart';
 import '../../../data/services/supabase_service.dart';
+import '../../../data/services/ocr_service.dart';
+import '../../../data/services/receipt_parser.dart';
 import '../../../view_models/custom_ledger_detail_view_model.dart';
 import '../../../view_models/auth_view_model.dart';
 import '../../core/theme.dart';
@@ -35,6 +37,131 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
   final _expDescController = TextEditingController();
   String? _selectedCategory;
   Expense? _editingExpense;
+
+  final OCRService _ocrService = OCRService();
+  bool _isOcrLoading = false;
+
+  void _showScanOptions(BuildContext context) {
+    final colors = AppTheme.ledgersColors;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: colors.ink),
+                title: Text('Take Photo', style: AppTheme.getBodyStyle(colors, weight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _scanReceipt(true);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library, color: colors.ink),
+                title: Text('Choose from Gallery', style: AppTheme.getBodyStyle(colors, weight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _scanReceipt(false);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _scanReceipt(bool fromCamera) async {
+    setState(() {
+      _isOcrLoading = true;
+    });
+
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Processing receipt OCR...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final parsed = await _ocrService.pickAndParseReceipt(fromCamera);
+      // Close the loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (parsed != null) {
+        setState(() {
+          if (parsed.totalAmount != null) {
+            _expAmountController.text = parsed.totalAmount!.toStringAsFixed(2);
+          }
+          if (parsed.vendor != null) {
+            _expDescController.text = parsed.vendor!;
+          }
+          if (parsed.date != null) {
+            try {
+              final parsedDate = DateTime.parse(parsed.date!);
+              _selectedExpDate = parsedDate;
+              _expDateController.text = DateFormat('yyyy-MM-dd').format(parsedDate);
+            } catch (_) {}
+          }
+          // Suggest dynamic categories in custom ledger
+          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems);
+          final dynamicCategories = _viewModel.categories.map((c) => c.name).toList();
+
+          if (dynamicCategories.isNotEmpty) {
+            final matched = dynamicCategories.firstWhere(
+              (cat) => cat.toLowerCase() == suggestion.category.toLowerCase() ||
+                      suggestion.category.toLowerCase().contains(cat.toLowerCase()) ||
+                      cat.toLowerCase().contains(suggestion.category.toLowerCase()),
+              orElse: () => dynamicCategories.first,
+            );
+            _selectedCategory = matched;
+          }
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Receipt parsed: ${parsed.vendor ?? "Unknown Vendor"}, ₹${parsed.totalAmount?.toStringAsFixed(2) ?? "0.00"}',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close dialog if still showing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to parse receipt: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOcrLoading = false;
+        });
+      }
+    }
+  }
 
   // Income controllers
   final _incDateController = TextEditingController();
@@ -460,9 +587,30 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    _editingExpense != null ? "Edit expense" : "Add an expense",
-                    style: AppTheme.getSubHeadingStyle(colors, size: 15),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _editingExpense != null ? "Edit expense" : "Add an expense",
+                        style: AppTheme.getSubHeadingStyle(colors, size: 15),
+                      ),
+                      if (_editingExpense == null)
+                        TextButton.icon(
+                          onPressed: _isOcrLoading ? null : () => _showScanOptions(context),
+                          icon: Icon(Icons.camera_alt_outlined, size: 18, color: _isOcrLoading ? Colors.grey : colors.ink),
+                          label: Text(
+                            "Scan Receipt",
+                            style: AppTheme.getBodyStyle(colors, size: 12, weight: FontWeight.w600).copyWith(
+                              color: colors.ink,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(

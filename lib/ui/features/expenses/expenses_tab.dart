@@ -10,6 +10,8 @@ import 'package:open_file/open_file.dart';
 import '../../../view_models/main_ledger_view_model.dart';
 import '../../../view_models/auth_view_model.dart';
 import '../../../data/models.dart';
+import '../../../data/services/ocr_service.dart';
+import '../../../data/services/receipt_parser.dart';
 import '../../core/theme.dart';
 import '../../core/widgets.dart';
 
@@ -30,6 +32,9 @@ class _ExpensesTabState extends State<ExpensesTab> {
   String _selectedCategory = 'Groceries';
   Expense? _editingExpense;
 
+  final OCRService _ocrService = OCRService();
+  bool _isOcrLoading = false;
+
   final List<String> _categories = [
     'Groceries',
     'Fuel',
@@ -41,6 +46,121 @@ class _ExpensesTabState extends State<ExpensesTab> {
     'Salary',
     'Others'
   ];
+
+  void _showScanOptions(BuildContext context) {
+    final colors = AppTheme.expensesColors;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: colors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: colors.ink),
+                title: Text('Take Photo', style: AppTheme.getBodyStyle(colors, weight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _scanReceipt(true);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library, color: colors.ink),
+                title: Text('Choose from Gallery', style: AppTheme.getBodyStyle(colors, weight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _scanReceipt(false);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _scanReceipt(bool fromCamera) async {
+    setState(() {
+      _isOcrLoading = true;
+    });
+
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Processing receipt OCR...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final parsed = await _ocrService.pickAndParseReceipt(fromCamera);
+      // Close the loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (parsed != null) {
+        setState(() {
+          if (parsed.totalAmount != null) {
+            _amountController.text = parsed.totalAmount!.toStringAsFixed(2);
+          }
+          if (parsed.vendor != null) {
+            _descController.text = parsed.vendor!;
+          }
+          if (parsed.date != null) {
+            try {
+              final parsedDate = DateTime.parse(parsed.date!);
+              _selectedDate = parsedDate;
+              _dateController.text = DateFormat('yyyy-MM-dd').format(parsedDate);
+            } catch (_) {}
+          }
+          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems);
+          if (_categories.contains(suggestion.category)) {
+            _selectedCategory = suggestion.category;
+          } else {
+            _selectedCategory = 'Others';
+          }
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Receipt parsed: ${parsed.vendor ?? "Unknown Vendor"}, ₹${parsed.totalAmount?.toStringAsFixed(2) ?? "0.00"}',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close dialog if still showing
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to parse receipt: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOcrLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -253,9 +373,30 @@ class _ExpensesTabState extends State<ExpensesTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    _editingExpense != null ? 'Edit expense' : 'Add an expense',
-                    style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _editingExpense != null ? 'Edit expense' : 'Add an expense',
+                        style: AppTheme.getSubHeadingStyle(colors, size: 16),
+                      ),
+                      if (_editingExpense == null)
+                        TextButton.icon(
+                          onPressed: _isOcrLoading ? null : () => _showScanOptions(context),
+                          icon: Icon(Icons.camera_alt_outlined, size: 18, color: _isOcrLoading ? Colors.grey : colors.ink),
+                          label: Text(
+                            "Scan Receipt",
+                            style: AppTheme.getBodyStyle(colors, size: 12, weight: FontWeight.w600).copyWith(
+                              color: colors.ink,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
