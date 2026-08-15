@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 
@@ -157,20 +156,26 @@ class SupabaseService {
       body['ledgerId'] = ledgerId;
     }
 
-    final response = await http.post(
-      Uri.parse('$supabaseUrl/functions/v1/analyze-spending'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(body),
-    );
+    try {
+      final FunctionResponse response = await _client.functions.invoke(
+        'analyze-spending',
+        body: body,
+      );
 
-    if (response.statusCode != 200) {
-      final errData = jsonDecode(response.body);
-      throw Exception(errData['error'] ?? 'Something went wrong analyzing spending.');
+      if (response.status != 200) {
+        throw Exception('Failed to analyze spending: status ${response.status}');
+      }
+
+      final data = response.data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      } else if (data is String) {
+        return jsonDecode(data) as Map<String, dynamic>;
+      } else {
+        throw Exception('Unexpected response format from AI advisor.');
+      }
+    } catch (e) {
+      throw Exception('Failed to call AI Advisor: $e');
     }
-
-    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }
