@@ -49,4 +49,6 @@ app.*.map.json
 *.env
 api_keys.json
 .vscode/
+scratch/
+
 

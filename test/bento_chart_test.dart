@@ -69,4 +69,52 @@ void main() {
     expect(find.textContaining('SHOPPING'), findsWidgets);
     expect(find.text('CATEGORY BREAKDOWN'), findsOneWidget);
   });
+
+  testWidgets('BentoExpenseChartView switches to By Category mode and displays multi-month data', (tester) async {
+    final now = DateTime.now();
+    final sampleExpenses = [
+      Expense(
+        id: '1',
+        userId: 'user_1',
+        expenseDate: DateTime(now.year, now.month, 5),
+        category: 'Food',
+        amount: 300.0,
+        createdAt: now,
+      ),
+      Expense(
+        id: '2',
+        userId: 'user_1',
+        expenseDate: DateTime(now.year, now.month - 1, 15),
+        category: 'Food',
+        amount: 450.0,
+        createdAt: now,
+      ),
+    ];
+
+    final fakeService = FakeSupabaseService(sampleExpenses);
+    final vm = MainLedgerViewModel(fakeService);
+    await vm.loadData();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<MainLedgerViewModel>.value(
+          value: vm,
+          child: const BentoExpenseChartView(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Tap "By Category" tab
+    await tester.tap(find.text('By Category'));
+    await tester.pumpAndSettle();
+
+    // Verify category header & total
+    expect(find.textContaining('Food Expenses (Last 2 Months)'), findsOneWidget);
+    expect(find.text('MONTH-BY-MONTH BREAKDOWN'), findsOneWidget);
+  });
 }
+
+
+
