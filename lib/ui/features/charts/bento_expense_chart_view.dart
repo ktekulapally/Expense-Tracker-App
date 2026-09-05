@@ -85,7 +85,7 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
               _buildEmptyState(monthLabel, colors)
             else ...[
               // Bento / Treemap Visual Grid
-              _buildBentoGrid(sortedCategories, totalMonthAmount),
+              _buildBentoGrid(sortedCategories, totalMonthAmount, currencyFormat),
               const SizedBox(height: 20),
 
               // Category Percentage Breakdown List
@@ -165,7 +165,11 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
   }
 
   /// Dynamic Bento / Treemap grid showing color-coded category tiles
-  Widget _buildBentoGrid(List<MapEntry<String, double>> sortedCategories, double totalAmount) {
+  Widget _buildBentoGrid(
+    List<MapEntry<String, double>> sortedCategories,
+    double totalAmount,
+    NumberFormat currencyFormat,
+  ) {
     if (sortedCategories.isEmpty) return const SizedBox.shrink();
 
     // Map each category to its styled tile
@@ -194,14 +198,14 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
-          children: _assembleBentoRows(tileDataList),
+          children: _assembleBentoRows(tileDataList, currencyFormat),
         ),
       ),
     );
   }
 
   /// Assembles tiles into aesthetic asymmetric Bento rows
-  List<Widget> _assembleBentoRows(List<_CategoryTileData> tiles) {
+  List<Widget> _assembleBentoRows(List<_CategoryTileData> tiles, NumberFormat currencyFormat) {
     final List<Widget> rows = [];
     int index = 0;
 
@@ -209,21 +213,21 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
       final remaining = tiles.length - index;
 
       if (remaining == 1) {
-        rows.add(_buildSingleTileRow(tiles[index]));
+        rows.add(_buildSingleTileRow(tiles[index], currencyFormat));
         index += 1;
       } else if (remaining == 2) {
-        rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], ratio: 0.55));
+        rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], currencyFormat, ratio: 0.55));
         index += 2;
       } else if (remaining == 3) {
-        rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], ratio: 0.60));
-        rows.add(_buildSingleTileRow(tiles[index + 2]));
+        rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], currencyFormat, ratio: 0.60));
+        rows.add(_buildSingleTileRow(tiles[index + 2], currencyFormat));
         index += 3;
       } else {
         // 4 or more tiles: alternating 2-column asymmetric layouts
         if (rows.length % 2 == 0) {
-          rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], ratio: 0.62));
+          rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], currencyFormat, ratio: 0.62));
         } else {
-          rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], ratio: 0.42));
+          rows.add(_buildTwoTileRow(tiles[index], tiles[index + 1], currencyFormat, ratio: 0.42));
         }
         index += 2;
       }
@@ -232,29 +236,34 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
     return rows;
   }
 
-  Widget _buildSingleTileRow(_CategoryTileData tile) {
+  Widget _buildSingleTileRow(_CategoryTileData tile, NumberFormat currencyFormat) {
     return Container(
-      height: 110,
+      height: 130,
       margin: const EdgeInsets.only(bottom: 4),
-      child: _BentoTileWidget(data: tile),
+      child: _BentoTileWidget(data: tile, currencyFormat: currencyFormat),
     );
   }
 
-  Widget _buildTwoTileRow(_CategoryTileData left, _CategoryTileData right, {required double ratio}) {
+  Widget _buildTwoTileRow(
+    _CategoryTileData left,
+    _CategoryTileData right,
+    NumberFormat currencyFormat, {
+    required double ratio,
+  }) {
     return Container(
-      height: 125,
+      height: 138,
       margin: const EdgeInsets.only(bottom: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             flex: (ratio * 100).toInt(),
-            child: _BentoTileWidget(data: left),
+            child: _BentoTileWidget(data: left, currencyFormat: currencyFormat),
           ),
           const SizedBox(width: 4),
           Expanded(
             flex: ((1.0 - ratio) * 100).toInt(),
-            child: _BentoTileWidget(data: right),
+            child: _BentoTileWidget(data: right, currencyFormat: currencyFormat),
           ),
         ],
       ),
@@ -405,93 +414,123 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
     );
   }
 
-  /// Maps category name to color palette and vector icons matching reference image
+  /// Distinct, unique color palettes and vector icons for every single category
   _CategoryVisualConfig _getCategoryVisualConfig(String category) {
-    final lower = category.toLowerCase().trim();
+    final normalized = category.toLowerCase().trim();
 
-    if (lower.contains('food') || lower.contains('restaurant') || lower.contains('sweet')) {
+    // 1. Food: Deep Forest Green
+    if (normalized == 'food' || normalized.contains('restaurant') || normalized.contains('sweet')) {
       return const _CategoryVisualConfig(
         primaryColor: Color(0xFF2E7D32),
         secondaryColor: Color(0xFF43A047),
         icon: Icons.restaurant_rounded,
       );
     }
-    if (lower.contains('travel') || lower.contains('transport')) {
+
+    // 2. Groceries: Fresh Olive / Lime Green
+    if (normalized == 'groceries' || normalized.contains('supermarket') || normalized.contains('kirana')) {
       return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF1565C0),
-        secondaryColor: Color(0xFF1E88E5),
-        icon: Icons.flight_takeoff_rounded,
+        primaryColor: Color(0xFF558B2F),
+        secondaryColor: Color(0xFF7CB342),
+        icon: Icons.shopping_basket_rounded,
       );
     }
-    if (lower.contains('fuel') || lower.contains('petrol') || lower.contains('diesel')) {
+
+    // 3. Fuel: Marine / Royal Blue
+    if (normalized == 'fuel' || normalized.contains('petrol') || normalized.contains('diesel')) {
       return const _CategoryVisualConfig(
         primaryColor: Color(0xFF0D47A1),
         secondaryColor: Color(0xFF1976D2),
         icon: Icons.local_gas_station_rounded,
       );
     }
-    if (lower.contains('rent')) {
+
+    // 4. Transport: Sky / Cerulean Blue
+    if (normalized == 'transport' || normalized.contains('travel') || normalized.contains('flight') || normalized.contains('cab')) {
+      return const _CategoryVisualConfig(
+        primaryColor: Color(0xFF0288D1),
+        secondaryColor: Color(0xFF29B6F6),
+        icon: Icons.flight_takeoff_rounded,
+      );
+    }
+
+    // 5. Electricity Bills: Electric Violet / Indigo
+    if (normalized.contains('electricity') || normalized.contains('power') || normalized.contains('tgspdcl')) {
+      return const _CategoryVisualConfig(
+        primaryColor: Color(0xFF673AB7),
+        secondaryColor: Color(0xFF7E57C2),
+        icon: Icons.bolt_rounded,
+      );
+    }
+
+    // 6. Mobile / Wifi Bills: Cyan / Ocean Teal
+    if (normalized.contains('mobile') || normalized.contains('wifi') || normalized.contains('broadband') || normalized.contains('jio') || normalized.contains('airtel')) {
+      return const _CategoryVisualConfig(
+        primaryColor: Color(0xFF0097A7),
+        secondaryColor: Color(0xFF00BCD4),
+        icon: Icons.wifi_rounded,
+      );
+    }
+
+    // 7. Bills / Utilities: Rich Purple / Orchid
+    if (normalized.contains('utilities') || normalized.contains('water') || normalized.contains('gas')) {
+      return const _CategoryVisualConfig(
+        primaryColor: Color(0xFF8E24AA),
+        secondaryColor: Color(0xFFBA68C8),
+        icon: Icons.receipt_long_rounded,
+      );
+    }
+
+    // 8. Rent: Warm Terracotta / Rust Orange
+    if (normalized.contains('rent')) {
       return const _CategoryVisualConfig(
         primaryColor: Color(0xFFD84315),
         secondaryColor: Color(0xFFF4511E),
         icon: Icons.home_rounded,
       );
     }
-    if (lower.contains('electricity')) {
-      return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF8E24AA),
-        secondaryColor: Color(0xFFAB47BC),
-        icon: Icons.bolt_rounded,
-      );
-    }
-    if (lower.contains('utilities') || lower.contains('bills')) {
-      return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF6A1B9A),
-        secondaryColor: Color(0xFF8E24AA),
-        icon: Icons.offline_bolt_rounded,
-      );
-    }
-    if (lower.contains('shopping') || lower.contains('amazon') || lower.contains('flipkart')) {
+
+    // 9. Shopping: Radiant Amber / Gold
+    if (normalized == 'shopping' || normalized.contains('amazon') || normalized.contains('flipkart') || normalized.contains('cloth')) {
       return const _CategoryVisualConfig(
         primaryColor: Color(0xFFF57F17),
-        secondaryColor: Color(0xFFFBC02D),
-        icon: Icons.tv_rounded,
+        secondaryColor: Color(0xFFFFB300),
+        icon: Icons.shopping_bag_rounded,
       );
     }
-    if (lower.contains('health') || lower.contains('medical') || lower.contains('pharmacy')) {
+
+    // 10. Health: Ruby / Crimson Rose
+    if (normalized == 'health' || normalized.contains('medical') || normalized.contains('pharmacy') || normalized.contains('hospital')) {
       return const _CategoryVisualConfig(
         primaryColor: Color(0xFFC2185B),
         secondaryColor: Color(0xFFE91E63),
         icon: Icons.local_hospital_rounded,
       );
     }
-    if (lower.contains('groceries') || lower.contains('supermarket')) {
+
+    // 11. Entertainment: Grape / Deep Lavender
+    if (normalized == 'entertainment' || normalized.contains('movie') || normalized.contains('cinema') || normalized.contains('pvr')) {
       return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF33691E),
-        secondaryColor: Color(0xFF558B2F),
-        icon: Icons.shopping_basket_rounded,
-      );
-    }
-    if (lower.contains('mobile') || lower.contains('wifi')) {
-      return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF00838F),
-        secondaryColor: Color(0xFF00ACC1),
-        icon: Icons.wifi_rounded,
-      );
-    }
-    if (lower.contains('entertainment') || lower.contains('movie')) {
-      return const _CategoryVisualConfig(
-        primaryColor: Color(0xFF5E35B1),
-        secondaryColor: Color(0xFF7E57C2),
-        icon: Icons.movie_rounded,
+        primaryColor: Color(0xFF512DA8),
+        secondaryColor: Color(0xFF5C6BC0),
+        icon: Icons.tv_rounded,
       );
     }
 
-    // Default / Adhoc / Others
+    // 12. Adhoc: Steel Slate / Charcoal
+    if (normalized == 'adhoc' || normalized.contains('misc')) {
+      return const _CategoryVisualConfig(
+        primaryColor: Color(0xFF37474F),
+        secondaryColor: Color(0xFF546E7A),
+        icon: Icons.tune_rounded,
+      );
+    }
+
+    // 13. Others / Fallback: Warm Mocha / Bronze
     return const _CategoryVisualConfig(
-      primaryColor: Color(0xFF455A64),
-      secondaryColor: Color(0xFF607D8B),
-      icon: Icons.spa_rounded,
+      primaryColor: Color(0xFF5D4037),
+      secondaryColor: Color(0xFF8D6E63),
+      icon: Icons.category_rounded,
     );
   }
 }
@@ -528,8 +567,12 @@ class _CategoryVisualConfig {
 
 class _BentoTileWidget extends StatelessWidget {
   final _CategoryTileData data;
+  final NumberFormat currencyFormat;
 
-  const _BentoTileWidget({required this.data});
+  const _BentoTileWidget({
+    required this.data,
+    required this.currencyFormat,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +589,7 @@ class _BentoTileWidget extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Background organic subtle leaf / pattern lines
+          // Background organic subtle leaf pattern overlay
           Positioned.fill(
             child: Opacity(
               opacity: 0.12,
@@ -556,39 +599,61 @@ class _BentoTileWidget extends StatelessWidget {
             ),
           ),
 
-          // Content
+          // Tile Content
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Category Name at top
-                Text(
-                  data.category.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                    shadows: [
-                      Shadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 1)),
-                    ],
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                // Top: Category Name + Amount below it
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      data.category.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                        shadows: [
+                          Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      currencyFormat.format(data.amount),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'monospace',
+                        shadows: [
+                          Shadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
                 ),
 
                 // Center Icon with soft emboss glow
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
+                      color: Colors.white.withValues(alpha: 0.16),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 8,
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ],
@@ -596,26 +661,26 @@ class _BentoTileWidget extends StatelessWidget {
                     child: Icon(
                       data.config.icon,
                       color: Colors.white,
-                      size: 34,
+                      size: 26,
                     ),
                   ),
                 ),
 
-                // Percentage Badge at bottom right
+                // Bottom Right: Percentage Badge
                 Align(
                   alignment: Alignment.bottomRight,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.25),
+                      color: Colors.black.withValues(alpha: 0.28),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       "${data.percentage.toStringAsFixed(0)}%",
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
