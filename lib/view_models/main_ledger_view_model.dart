@@ -157,10 +157,30 @@ class MainLedgerViewModel extends ChangeNotifier {
     return months;
   }
 
+  static const List<String> defaultExpenseCategories = [
+    'Groceries',
+    'Food',
+    'Fuel',
+    'Electricity Bills',
+    'Mobile / Wifi Bills',
+    'Shopping',
+    'Transport',
+    'Health',
+    'Bills / Utilities',
+    'Rent',
+    'Entertainment',
+    'Adhoc',
+    'Others'
+  ];
+
   List<String> get expenseCategories {
-    final categories = _allExpenses.map((e) => e.category).toSet().toList();
-    categories.sort();
-    return categories;
+    final set = Set<String>.from(defaultExpenseCategories);
+    for (final e in _allExpenses) {
+      if (e.category.trim().isNotEmpty) {
+        set.add(e.category.trim());
+      }
+    }
+    return set.toList();
   }
 
   List<String> get incomeMonths {

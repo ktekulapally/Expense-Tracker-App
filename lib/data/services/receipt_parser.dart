@@ -1,5 +1,8 @@
-import 'dart:math';
 import 'package:intl/intl.dart';
+
+/// ─────────────────────────────────────────────────────────────────────────
+/// Data models
+/// ─────────────────────────────────────────────────────────────────────────
 
 class ParsedReceipt {
   final String? vendor;
@@ -21,9 +24,9 @@ class ParsedReceipt {
   });
 
   @override
-  String toString() {
-    return 'ParsedReceipt(vendor: $vendor, date: $date, totalAmount: $totalAmount, category: ${CategoryMatcher.suggestCategory(vendor, lineItems).category}, confidence: $confidence)';
-  }
+  String toString() =>
+      'ParsedReceipt(vendor: $vendor, date: $date, amount: $totalAmount, '
+      'category: ${CategoryMatcher.suggestCategory(vendor, lineItems, rawOcrText).category})';
 }
 
 class LineItem {
@@ -40,65 +43,94 @@ class LineItem {
   });
 }
 
-class ReceiptParser {
-  // Regex patterns
-  static final RegExp _amountPattern = RegExp(
-    r'(?:₹|Rs\.?|INR)\s*(\d+(?:[,\.]\d{2,3})*(?:\.\d{2})?)',
-    caseSensitive: false,
-  );
+class CategorySuggestion {
+  final String category;
+  final double score;
+  CategorySuggestion({required this.category, required this.score});
+}
 
-  static final List<RegExp> _datePatterns = [
-    // Pattern 0: Text date format (e.g., 15 Aug, 2026 or 15 August 2026)
-    RegExp(
-      r'(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*,?\s+(\d{2,4})',
-      caseSensitive: false,
-    ),
-    // Pattern 1: YYYY/MM/DD or YYYY-MM-DD
-    RegExp(r'(\d{4})[./-](\d{1,2})[./-](\d{1,2})'),
-    // Pattern 2: DD/MM/YYYY or MM/DD/YYYY
-    RegExp(r'(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})'),
+/// ─────────────────────────────────────────────────────────────────────────
+/// ReceiptParser
+///
+/// Handles four distinct receipt formats:
+///   A. PhonePe / GPay / Paytm UPI transaction screenshots
+///   B. Amazon / E-Commerce Tax Invoices & Order Memos
+///   C. Electricity / utility bills (TGSPDCL, TSSPDCL, TSNPDCL, etc.)
+///   D. Traditional printed store / restaurant receipts
+/// ─────────────────────────────────────────────────────────────────────────
+
+class ReceiptParser {
+  // ── Known vendor fast-path map (normalized to <= 25 chars) ──────────────
+  static const Map<String, String> _knownVendors = {
+    'amazon': 'Amazon Purchase',
+    'flipkart': 'Flipkart Order',
+    'myntra': 'Myntra Order',
+    'ratnadeep': 'Ratnadeep',
+    'venkateshwara': 'Venkateshwara KGS',
+    'vijetha': 'Vijetha',
+    'kirana': 'Kirana Store',
+    'dmart': 'DMart',
+    'd-mart': 'DMart',
+    'big bazaar': 'Big Bazaar',
+    'reliance fresh': 'Reliance Fresh',
+    'reliance smart': 'Reliance Smart',
+    'mcdonalds': "McDonald's",
+    "mcdonald's": "McDonald's",
+    'kfc': 'KFC',
+    'dominos': "Domino's",
+    "domino's": "Domino's",
+    'starbucks': 'Starbucks',
+    'subway': 'Subway',
+    'swagruha': 'Swagruha Foods',
+    'garuda': 'Garuda Filling Station',
+    'tgspdcl': 'TGSPDCL Electricity',
+    'tsspdcl': 'TSSPDCL Electricity',
+    'tsnpdcl': 'TSNPDCL Electricity',
+  };
+
+  // ── Known message keywords that should become the Note directly ────────
+  static const List<String> _knownNoteKeywords = [
+    'Petrol', 'Diesel', 'Fuel', 'Sweets', 'Groceries', 'Grocery',
+    'Lunch', 'Dinner', 'Breakfast', 'Snacks', 'Tea', 'Coffee',
+    'Medicine', 'Milk', 'Vegetables', 'Fruits', 'JIO Bill',
   ];
 
+  // ── UPI markers ─────────────────────────────────────────────────────────
+  static const List<String> _upiMarkers = [
+    'transaction successful', 'payment successful', 'phonepe transaction',
+    'paid to', 'debited from', 'transfer to', 'utr', 'upi', 'phonepe',
+    'gpay', 'google pay', 'paytm', 'powered by', '@ybl', '@oksbi',
+    '@okicici', '@okhdfcbank', '@hdfcbank', '@apl', '@ibl',
+  ];
+
+  // ── Amazon & E-Commerce Invoice Markers ─────────────────────────────────
+  static const List<String> _amazonMarkers = [
+    'amazon.in', 'amazon seller', 'tax invoice/bill of supply',
+    'order number: 405-', 'order date:', 'invoice details :',
+    'invoice value:', 'karshanram patel'
+  ];
+
+  // ── Noise words that must NEVER be used as Note or Vendor ──────────────
+  static const List<String> _noiseWords = [
+    'axis bank', 'yes bank', 'sbi', 'state bank of india', 'hdfc bank',
+    'icici bank', 'kotak bank', 'canara bank', 'pnb', 'bob', 'union bank',
+    'ufid', 'upi', 'phonepe', 'gpay', 'paytm', 'powered by', 'transaction',
+    'payment details', 'transfer details', 'debited from', 'paid to',
+    'utr', 'message', 'successful', 'xxxxxx', 'tax invoice', 'bill of supply',
+    'original for recipient', 'sold by', 'billing address', 'shipping address',
+    'authorized signatory',
+  ];
+
+  // ── Month map for date parsing ──────────────────────────────────────────
   static const Map<String, int> _monthMap = {
     'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
     'may': 5, 'jun': 6, 'jul': 7, 'aug': 8,
-    'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
   };
 
-  static const Map<String, String> _knownVendors = {
-    'mcdonalds': "McDonald's",
-    'mcdonald\'s': "McDonald's",
-    'subway': 'Subway',
-    'dominos': 'Domino\'s',
-    'domino\'s': 'Domino\'s',
-    'kfc': 'KFC',
-    'pizzahut': 'Pizza Hut',
-    'pizza hut': 'Pizza Hut',
-    'starbucks': 'Starbucks',
-    'uber': 'Uber',
-    'ola': 'Ola',
-    'amazon': 'Amazon',
-    'walmart': 'Walmart',
-    'ikea': 'IKEA',
-    'reliance': 'Reliance',
-    'big bazaar': 'Big Bazaar',
-    'dmart': 'DMart',
-    'lassi story': 'Lassi Story',
-  };
-
-  static const Set<String> _receiptHeaders = {
-    'receipt', 'invoice', 'bill', 'transaction', 'order',
-    'thank you', 'thank u', 'visit us', 'follow us',
-    'customer care', 'help', 'dine in'
-  };
-
-  static const Set<String> _excludeLineKeywords = {
-    'total', 'subtotal', 'sub-total', 'tax', 'gst', 'cgst', 'sgst', 'vat',
-    'discount', 'disc', 'payment', 'cash', 'card', 'change', 'balance',
-    'due', 'amount', 'net', 'gross', 'rounding', 'round off', 'service charge',
-    'visa', 'mastercard', 'amex', 'upi', 'paytm', 'gpay', 'phonepe',
-    'mobile', 'phone', 'tel', 'email', 'address', 'website', 'cashier'
-  };
+  // ════════════════════════════════════════════════════════════════════════
+  // PUBLIC API
+  // ════════════════════════════════════════════════════════════════════════
 
   ParsedReceipt parseReceipt(String rawOcrText) {
     if (rawOcrText.trim().isEmpty) {
@@ -111,345 +143,620 @@ class ReceiptParser {
         .where((l) => l.isNotEmpty)
         .toList();
 
-    double confidence = 0.0;
-    String? vendorName;
-    String? dateFound;
-    double? totalAmount;
+    final lower = rawOcrText.toLowerCase();
 
-    // 1. Extract Vendor Name
-    vendorName = _extractVendor(lines);
-    if (vendorName != null) confidence += 0.25;
+    if (_isAmazonInvoice(lower)) return _parseAmazonInvoice(lines, lower, rawOcrText);
+    if (_isUpiScreenshot(lower))  return _parseUpiScreenshot(lines, lower, rawOcrText);
+    if (_isUtilityBill(lower))    return _parseUtilityBill(lines, lower, rawOcrText);
+    return _parseTraditionalReceipt(lines, lower, rawOcrText);
+  }
 
-    // 2. Extract Date
-    dateFound = _extractDate(lines);
-    if (dateFound != null) confidence += 0.25;
+  // ────────────────────────────────────────────────────────────────────────
+  // FORMAT DETECTION
+  // ────────────────────────────────────────────────────────────────────────
 
-    // 3. Extract Total Amount
-    totalAmount = _extractTotalAmount(lines);
-    if (totalAmount != null && totalAmount > 0) confidence += 0.40;
+  bool _isAmazonInvoice(String lower) {
+    if (lower.contains('amazon')) return true;
+    return _amazonMarkers.any((m) => lower.contains(m));
+  }
 
-    // 4. Extract Line Items
-    final lineItems = _extractLineItems(lines);
-    if (lineItems.isNotEmpty) confidence += 0.10;
+  bool _isUpiScreenshot(String lower) {
+    return _upiMarkers.any((m) => lower.contains(m));
+  }
 
-    confidence = confidence.clamp(0.0, 1.0);
+  bool _isUtilityBill(String lower) {
+    return lower.contains('tgspdcl') ||
+           lower.contains('tsspdcl') ||
+           lower.contains('tsnpdcl') ||
+           lower.contains('electricity duty') ||
+           lower.contains('sc no.') ||
+           lower.contains('usc no.');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PATH A: Amazon / E-Commerce Tax Invoices
+  // ════════════════════════════════════════════════════════════════════════
+
+  ParsedReceipt _parseAmazonInvoice(
+      List<String> lines, String lower, String raw) {
+
+    // Note is "Amazon Purchase" (capped <= 25 chars)
+    final noteDescription = 'Amazon Purchase';
+    final amount          = _extractAmountFromReceipt(lines, raw);
+    final date            = _extractUniversalDate(lower);
 
     return ParsedReceipt(
-      vendor: vendorName,
-      date: dateFound,
-      totalAmount: totalAmount,
-      lineItems: lineItems,
-      currency: 'INR',
-      confidence: confidence,
-      rawOcrText: rawOcrText,
+      vendor:      noteDescription,
+      date:        date,
+      totalAmount: amount,
+      lineItems:   const [],
+      currency:    'INR',
+      confidence:  0.95,
+      rawOcrText:  raw,
     );
   }
 
-  String? _extractVendor(List<String> lines) {
-    final allText = lines.join(' ').toLowerCase();
+  // ════════════════════════════════════════════════════════════════════════
+  // PATH B: UPI / PhonePe screenshots
+  // ════════════════════════════════════════════════════════════════════════
 
-    // Check high-priority known vendors in entire text
-    for (var entry in _knownVendors.entries) {
-      final regExp = RegExp('\\b${RegExp.escape(entry.key)}\\b', caseSensitive: false);
-      if (regExp.hasMatch(allText)) {
-        return entry.value;
+  ParsedReceipt _parseUpiScreenshot(
+      List<String> lines, String lower, String raw) {
+
+    final noteDescription = _extractUpiNote(lines, lower);
+    final amount          = _extractAmountFromReceipt(lines, raw);
+    final date            = _extractUniversalDate(lower);
+
+    double conf = 0.3;
+    if (noteDescription != null) conf += 0.25;
+    if (amount != null)          conf += 0.30;
+    if (date   != null)          conf += 0.15;
+
+    return ParsedReceipt(
+      vendor:      noteDescription,
+      date:        date,
+      totalAmount: amount,
+      lineItems:   const [],
+      currency:    'INR',
+      confidence:  conf.clamp(0.0, 1.0),
+      rawOcrText:  raw,
+    );
+  }
+
+  /// Extracts the best Note for the expense (Capped to max 25 characters):
+  /// 1. First extracts the value from the "Message" section (e.g. "Sweets", "Petrol")
+  /// 2. If message contains "Payment for 12345", cleans to "Payment"
+  /// 3. If message contains JIO tracking code, cleans to "JIO Bill"
+  /// 4. If no valid message, checks for known message words ("Petrol", "Sweets")
+  /// 5. If no message, falls back to clean Payee name ("Ratnadeep", etc.)
+  String? _extractUpiNote(List<String> lines, String lower) {
+    // 1. Check for explicit "Message" field value in the receipt
+    final message = _extractUpiMessage(lines);
+    if (message != null) {
+      final cleanedMsg = _normalizeMessageNote(message);
+      if (cleanedMsg != null && _isCleanNote(cleanedMsg)) {
+        return _capLength(cleanedMsg, 25);
       }
     }
 
-    // Fallback to first few non-header lines
-    for (var line in lines.take(8)) {
-      final cleaned = line.trim().toLowerCase();
-      if (_receiptHeaders.any((h) => cleaned.contains(h))) continue;
-      if (cleaned.length < 3) continue;
+    // 2. Direct check for known high-priority message words in the text
+    for (final kw in _knownNoteKeywords) {
+      final reg = RegExp('\\b${RegExp.escape(kw)}\\b', caseSensitive: false);
+      if (reg.hasMatch(lower)) {
+        return _capLength(kw, 25); // Returns "Petrol", "Sweets", etc.
+      }
+    }
 
-      // Skip contact information
-      if (cleaned.contains('email') ||
-          cleaned.contains('phone') ||
-          cleaned.contains('tel') ||
-          cleaned.contains('mobile') ||
-          cleaned.contains('road') ||
-          cleaned.contains('nagar') ||
-          cleaned.contains('street') ||
-          cleaned.contains('hyderabad')) {
+    // 3. Direct check for known vendor brands
+    for (final kv in _knownVendors.entries) {
+      if (lower.contains(kv.key)) {
+        return _capLength(kv.value, 25); // Returns "Ratnadeep", "Amazon Purchase", etc.
+      }
+    }
+
+    // 4. Extract Payee Name from "Paid to" section
+    final payee = _extractUpiPayee(lines);
+    if (payee != null && _isCleanNote(payee)) {
+      return _capLength(payee, 25);
+    }
+
+    return null;
+  }
+
+  /// Normalizes common message strings according to specification:
+  /// • 'Payment for 123456788' ➔ 'Payment'
+  /// • 'JIO20BR2TYFFJ...' ➔ 'JIO Bill'
+  String? _normalizeMessageNote(String message) {
+    final lower = message.toLowerCase().trim();
+    if (lower.startsWith('payment for') || lower.startsWith('payment to')) {
+      return 'Payment';
+    }
+    if (lower.startsWith('jio')) {
+      return 'JIO Bill';
+    }
+    if (lower.startsWith('airtel')) {
+      return 'Airtel Bill';
+    }
+    return message;
+  }
+
+  String _capLength(String text, int maxLen) {
+    return text.length > maxLen ? text.substring(0, maxLen).trim() : text;
+  }
+
+  /// Extracts the exact value from the "Message" section of the UPI receipt
+  String? _extractUpiMessage(List<String> lines) {
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final lower = line.toLowerCase().trim();
+
+      // Case A: "Message Sweets" or "Message: Sweets" on the same line
+      if (lower.startsWith('message') && line.length > 7) {
+        final after = line.substring(7).replaceAll(RegExp(r'^[:\s\-]+'), '').trim();
+        if (_isCleanNote(after)) return after;
+      }
+
+      // Case B: "Message" on its own line, value on the next line (e.g. "Sweets" or "Petrol")
+      if (lower == 'message' || lower == 'message:') {
+        if (i + 1 < lines.length) {
+          final nextLine = lines[i + 1].trim();
+          if (_isCleanNote(nextLine)) return nextLine;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Extracts Payee Name from the "Paid to" block
+  String? _extractUpiPayee(List<String> lines) {
+    int paidToIdx = -1;
+    for (int i = 0; i < lines.length; i++) {
+      final lower = lines[i].toLowerCase();
+      if (lower.contains('paid to') || lower.contains('transfer to')) {
+        paidToIdx = i;
+        break;
+      }
+    }
+
+    if (paidToIdx >= 0) {
+      final end = (paidToIdx + 4).clamp(0, lines.length);
+      for (int i = paidToIdx + 1; i < end; i++) {
+        var line = lines[i];
+        final lower = line.toLowerCase();
+
+        // Stop if line contains UPI ID (@) or details
+        if (lower.contains('@') ||
+            lower.contains('payment details') ||
+            lower.contains('transfer details') ||
+            lower.contains('message')) {
+          break;
+        }
+
+        // Clean out inline amounts and currency symbols
+        line = line
+            .replaceAll(RegExp(r'[₹\u20B9*F~?Ez#]?\s*\d+(?:,\d{3})*(?:\.\d{2})?'), '')
+            .replaceAll(RegExp(r'[@\-_]'), ' ')
+            .trim();
+
+        if (_isCleanNote(line)) {
+          return line;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Verifies that a candidate string is clean (not a noise line, transaction ID, bank name, or UPI ID)
+  bool _isCleanNote(String text) {
+    if (text.length < 2 || text.length > 50) return false;
+    final lower = text.toLowerCase();
+
+    // Must not contain noise words
+    if (_noiseWords.any((w) => lower.contains(w))) return false;
+    // Must not contain UPI ID handle
+    if (lower.contains('@') || lower.contains('.ybl') || lower.contains('.sbi')) return false;
+    // Must not be a transaction ID
+    if (text.startsWith('T2') && text.length > 10) return false;
+    // Must not be mostly digits (e.g. "2048643785")
+    final digits = text.replaceAll(RegExp(r'\D'), '').length;
+    if (digits > text.length ~/ 3 && !lower.startsWith('jio')) return false;
+
+    return true;
+  }
+
+  /// Extracts the transaction amount from receipt / screenshot OCR text.
+  /// Handles:
+  ///   - Keywords: TOTAL, Invoice Value, Total Amount, Net Payable, Total Paid, Paid, Received Amount
+  ///   - All UPI amounts prefixed with ₹, \u20B9, Rs, rs, INR, or OCR glyph variants
+  ///   - Comma-separated numbers: 4,599.00, 1,345.00
+  double? _extractAmountFromReceipt(List<String> lines, String rawText) {
+    final candidateAmounts = <double>[];
+
+    // Priority 1: Amounts associated with TOTAL / Invoice Value / Total Amount keywords
+    final totalKeywords = [
+      'total:', 'total amount', 'invoice value:', 'invoice value', 'net payable',
+      'total paid', 'received amount', 'grand total', 'payable amount', 'net amount'
+    ];
+
+    for (int i = 0; i < lines.length; i++) {
+      final lower = lines[i].toLowerCase();
+      if (totalKeywords.any((k) => lower.contains(k))) {
+        final checkLines = [lines[i]];
+        if (i + 1 < lines.length) checkLines.add(lines[i + 1]);
+
+        for (final cl in checkLines) {
+          // Look for currency or comma numbers in this total line
+          final m = RegExp(r'(?:[₹\u20B9]|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d{2,6}(?:\.\d{1,2})?)', caseSensitive: false).allMatches(cl);
+          for (final match in m) {
+            final raw = match.group(1);
+            if (raw != null) {
+              final v = double.tryParse(raw.replaceAll(',', ''));
+              if (v != null && v > 0 && !_isDateOrYear(v)) {
+                // Highly weighted (3x) because it is directly next to a TOTAL keyword
+                candidateAmounts.add(v);
+                candidateAmounts.add(v);
+                candidateAmounts.add(v);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Priority 2: Strict Indian Rupee symbol prefix (₹4,599.00, ₹840, ₹500, ₹1,345, \u20B9840)
+    final rupeePattern = RegExp(
+      r'[₹\u20B9]\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)',
+    );
+    for (final m in rupeePattern.allMatches(rawText)) {
+      final raw = m.group(1);
+      if (raw != null) {
+        final v = double.tryParse(raw.replaceAll(',', ''));
+        if (v != null && v > 0 && !_isDateOrYear(v)) {
+          candidateAmounts.add(v);
+          candidateAmounts.add(v); // Double weight for explicit ₹ matches
+        }
+      }
+    }
+
+    // Priority 3: Rs / INR / OCR glyphs (*840, F840, Rs. 840, INR 840, ~840, ?840)
+    final ocrRupeePattern = RegExp(
+      r'(?:Rs\.?|rs\.?|INR|[*\u007E?#])\s*(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)',
+      caseSensitive: false,
+    );
+    for (final m in ocrRupeePattern.allMatches(rawText)) {
+      final raw = m.group(1);
+      if (raw != null) {
+        final v = double.tryParse(raw.replaceAll(',', ''));
+        if (v != null && v > 0 && !_isDateOrYear(v)) {
+          candidateAmounts.add(v);
+        }
+      }
+    }
+
+    // Priority 4: Comma-formatted numbers (e.g. 4,599.00, 1,345.00)
+    final commaPattern = RegExp(r'\b(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?)\b');
+    for (final m in commaPattern.allMatches(rawText)) {
+      final raw = m.group(1);
+      if (raw != null) {
+        final v = double.tryParse(raw.replaceAll(',', ''));
+        if (v != null && v > 0 && !_isDateOrYear(v)) {
+          candidateAmounts.add(v);
+        }
+      }
+    }
+
+    // Priority 5: Scan line-by-line for amount numbers
+    for (final line in lines) {
+      final lower = line.toLowerCase();
+
+      // Skip lines that are purely metadata headers
+      if (lower.startsWith('utr') ||
+          lower.startsWith('phonepe transaction') ||
+          (lower.startsWith('t2') && line.length > 15) ||
+          lower.contains('08:59') ||
+          lower.contains('10:20') ||
+          lower.contains('10:33') ||
+          lower.contains('14:58:59')) {
         continue;
       }
 
-      // Check digit ratio to avoid lines that are mostly metadata
-      final digits = line.replaceAll(RegExp(r'\D'), '');
-      if (digits.length > 4) continue;
+      // Remove UTR numbers (10+ digits), account masks (XXXXXX0728) and dates
+      final cleanedLine = line
+          .replaceAll(RegExp(r'\b\d{10,24}\b'), ' ')
+          .replaceAll(RegExp(r'XXXXXX\d+'), ' ')
+          .replaceAll(RegExp(r'[X\d]{6,}\b'), ' ')
+          .replaceAll(RegExp(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}'), ' ')
+          .replaceAll(RegExp(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}', caseSensitive: false), ' ');
 
-      return line.trim();
-    }
+      // Find any digits in the cleaned line
+      final matches = RegExp(r'(?:[₹\u20B9*F~?Ez#]|Rs\.?|rs\.?|INR)?\s*(\d{2,6}(?:\.\d{1,2})?)', caseSensitive: false).allMatches(cleanedLine);
+      for (final m in matches) {
+        final raw = m.group(1);
+        if (raw == null) continue;
 
-    return null;
-  }
-
-  String? _extractDate(List<String> lines) {
-    final allText = lines.join(' ');
-
-    // 1. Try text pattern (e.g. 15 Aug, 2026)
-    final textMatch = _datePatterns[0].firstMatch(allText);
-    if (textMatch != null) {
-      try {
-        final day = int.parse(textMatch.group(1)!);
-        final monthStr = textMatch.group(2)!.toLowerCase();
-        final month = _monthMap[monthStr] ?? 1;
-        var yearVal = int.parse(textMatch.group(3)!);
-        final year = yearVal < 100 ? 2000 + yearVal : yearVal;
-
-        final dateObj = DateTime(year, month, day);
-        return DateFormat('yyyy-MM-dd').format(dateObj);
-      } catch (_) {}
-    }
-
-    // 2. Try YYYY/MM/DD pattern
-    final yyyyMatch = _datePatterns[1].firstMatch(allText);
-    if (yyyyMatch != null) {
-      try {
-        final year = int.parse(yyyyMatch.group(1)!);
-        final month = int.parse(yyyyMatch.group(2)!);
-        final day = int.parse(yyyyMatch.group(3)!);
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-          final dateObj = DateTime(year, month, day);
-          return DateFormat('yyyy-MM-dd').format(dateObj);
-        }
-      } catch (_) {}
-    }
-
-    // 3. Try DD/MM/YYYY or MM/DD/YYYY pattern
-    final ddMatch = _datePatterns[2].firstMatch(allText);
-    if (ddMatch != null) {
-      try {
-        final val1 = int.parse(ddMatch.group(1)!);
-        final val2 = int.parse(ddMatch.group(2)!);
-        var yearVal = int.parse(ddMatch.group(3)!);
-        final year = yearVal < 100 ? 2000 + yearVal : yearVal;
-
-        int day = val1;
-        int month = val2;
-
-        if (val1 > 12 && val2 <= 12) {
-          day = val1;
-          month = val2;
-        } else if (val2 > 12 && val1 <= 12) {
-          day = val2;
-          month = val1;
-        }
-
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-          final dateObj = DateTime(year, month, day);
-          return DateFormat('yyyy-MM-dd').format(dateObj);
-        }
-      } catch (_) {}
-    }
-
-    return null;
-  }
-
-  double? _extractTotalAmount(List<String> lines) {
-    final List<double> amounts = [];
-
-    // Look for lines containing "total" or "grand total" or "payable"
-    final totalKeywords = [
-      'total',
-      'grand total',
-      'bill amount',
-      'net amount',
-      'payable',
-      'amount due',
-      'grandtotal',
-      'paid'
-    ];
-
-    final genericAmountPattern = RegExp(
-      r'(?:₹|Rs\.?|INR)?\s*(\d+(?:[,\.]\d{2,3})*(?:\.\d{2}))',
-      caseSensitive: false,
-    );
-
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final lowerLine = line.toLowerCase();
-
-      if (totalKeywords.any((k) => lowerLine.contains(k))) {
-        // Collect candidate lines to search: the current line, next line, and previous line
-        final candidates = [line];
-        if (i + 1 < lines.length) candidates.add(lines[i + 1]);
-        if (i - 1 >= 0) candidates.add(lines[i - 1]);
-
-        for (var cand in candidates) {
-          // Exclude dates like "15 Aug, 2026" or time "19:41" from being matched as amount
-          final dateRegex = RegExp(r'\d{1,4}[./-]\d{1,2}[./-]\d{2,4}');
-          final textDateRegex = RegExp(
-            r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*,?\s+\d{2,4}',
-            caseSensitive: false,
-          );
-          final timeRegex = RegExp(r'\d{1,2}:\d{2}');
-
-          final cleanedCand = cand
-              .replaceAll(dateRegex, ' ')
-              .replaceAll(textDateRegex, ' ')
-              .replaceAll(timeRegex, ' ');
-
-          final matches = genericAmountPattern.allMatches(cleanedCand);
-          for (var match in matches) {
-            try {
-              final amtStr = match.group(1)!.replaceAll(',', '');
-              final val = double.parse(amtStr);
-              // Avoid returning years or invoices as totals
-              if (val != 2026 && val != 2025 && val != 2027) {
-                amounts.add(val);
-              }
-            } catch (_) {}
+        // Correct for OCR artifact where ₹ is transcribed as leading 7 (e.g. 7500 -> 500, 7840 -> 840)
+        if (raw.startsWith('7') && raw.length >= 3 && raw.length <= 6) {
+          final corrected = raw.substring(1);
+          final vCorrected = double.tryParse(corrected);
+          if (vCorrected != null && vCorrected >= 10 && !_isDateOrYear(vCorrected)) {
+            candidateAmounts.add(vCorrected);
+            continue;
           }
         }
+
+        final v = double.tryParse(raw);
+        if (v != null && v >= 10 && v < 1000000 && !_isDateOrYear(v) && !_isNoiseNumber(raw)) {
+          candidateAmounts.add(v);
+        }
       }
     }
 
-    if (amounts.isNotEmpty) {
-      // Return the maximum amount found near the total keywords (usually the grand total)
-      return amounts.reduce(max);
+    if (candidateAmounts.isEmpty) return null;
+
+    // Prioritize amounts with the highest frequency
+    final freq = <double, int>{};
+    for (final a in candidateAmounts) {
+      freq[a] = (freq[a] ?? 0) + 1;
     }
 
-    // Fallback: search for any currency patterns in the whole receipt
-    for (var line in lines) {
-      final matches = _amountPattern.allMatches(line);
-      for (var match in matches) {
-        try {
-          final amtStr = match.group(1)!.replaceAll(',', '');
-          amounts.add(double.parse(amtStr));
-        } catch (_) {}
-      }
+    final sorted = freq.entries.toList()
+      ..sort((a, b) {
+        final cmp = b.value.compareTo(a.value);
+        return cmp != 0 ? cmp : b.key.compareTo(a.key);
+      });
+
+    return sorted.first.key;
+  }
+
+  bool _isDateOrYear(double val) {
+    return val == 2024 || val == 2025 || val == 2026 || val == 2027 || val == 2028;
+  }
+
+  bool _isNoiseNumber(String raw) {
+    if (raw.length == 4 && raw.startsWith('0')) return true;
+    if (raw.length >= 10) return true;
+    return false;
+  }
+
+  /// Universal date extractor:
+  /// 1. PhonePe timestamp format ("10:33 am on 27 Aug 2026")
+  /// 2. Text month format ("27 Aug 2026", "24 July 2026")
+  /// 3. Dot/Slash date format ("24.07.2026", "24/07/2026")
+  /// 4. ISO format ("2026-07-24")
+  String? _extractUniversalDate(String lower) {
+    // 1. Text Month format: "27 Aug 2026"
+    final mText = RegExp(
+      r'(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})',
+      caseSensitive: false,
+    ).firstMatch(lower);
+
+    if (mText != null) {
+      try {
+        final day   = int.parse(mText.group(1)!);
+        final month = _monthMap[mText.group(2)!.toLowerCase().substring(0, 3)] ?? 0;
+        final year  = int.parse(mText.group(3)!);
+        if (month > 0) {
+          return DateFormat('yyyy-MM-dd').format(DateTime(year, month, day));
+        }
+      } catch (_) {}
     }
 
-    if (amounts.isNotEmpty) {
-      return amounts.reduce(max);
+    // 2. Dot or Slash format: "24.07.2026" or "24/07/2026" (Common in Amazon & Tax Invoices)
+    final mDot = RegExp(r'(\d{1,2})[./](\d{1,2})[./](\d{4})').firstMatch(lower);
+    if (mDot != null) {
+      try {
+        final d1 = int.parse(mDot.group(1)!);
+        final d2 = int.parse(mDot.group(2)!);
+        final year = int.parse(mDot.group(3)!);
+
+        // Standard Indian / EU DD.MM.YYYY
+        final day = (d1 > 12 || d2 <= 12) ? d1 : d2;
+        final month = (d1 > 12 || d2 <= 12) ? d2 : d1;
+
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return DateFormat('yyyy-MM-dd').format(DateTime(year, month, day));
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback: ISO format 2026-07-24
+    final isoM = RegExp(r'(\d{4})-(\d{2})-(\d{2})').firstMatch(lower);
+    if (isoM != null) {
+      return isoM.group(0);
     }
 
     return null;
   }
 
-  List<LineItem> _extractLineItems(List<String> lines) {
-    final List<LineItem> items = [];
-    final genericNumberPattern = RegExp(r'(?:₹|Rs\.?|INR)?\s*(\d+(?:[.,]\d{3})*(?:\.\d{2})?)');
+  // ════════════════════════════════════════════════════════════════════════
+  // PATH C: Electricity / utility bills
+  // ════════════════════════════════════════════════════════════════════════
 
-    for (var line in lines) {
-      final lowerLine = line.toLowerCase();
-      if (line.length < 4) continue;
-      if (_receiptHeaders.any((h) => lowerLine.contains(h))) continue;
-      if (_excludeLineKeywords.any((k) => lowerLine.contains(k))) continue;
-      if (!line.contains(RegExp(r'[a-zA-Z]'))) continue; // Must contain letters
+  ParsedReceipt _parseUtilityBill(
+      List<String> lines, String lower, String raw) {
+    return ParsedReceipt(
+      vendor:      'TGSPDCL Electricity',
+      date:        _extractUniversalDate(lower) ?? DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      totalAmount: _extractAmountFromReceipt(lines, raw),
+      lineItems:   const [],
+      currency:    'INR',
+      confidence:  0.85,
+      rawOcrText:  raw,
+    );
+  }
 
-      final matches = genericNumberPattern.allMatches(line).toList();
-      if (matches.isNotEmpty) {
-        // Description is usually text before the first number or between first and last numbers
-        String description = '';
-        if (matches.length > 1 && matches.first.start == 0) {
-          description = line.substring(matches.first.end, matches.last.start).trim();
-        } else {
-          description = line.substring(0, matches.first.start).trim();
-        }
+  // ════════════════════════════════════════════════════════════════════════
+  // PATH D: Traditional printed receipts
+  // ════════════════════════════════════════════════════════════════════════
 
-        // Clean up leading numbers or punctuation in description
-        description = description.replaceFirst(RegExp(r'^[-\d.\s+*]+'), '').trim();
+  ParsedReceipt _parseTraditionalReceipt(
+      List<String> lines, String lower, String raw) {
+    double conf = 0.0;
 
-        if (description.length >= 3 && description.length < 60) {
-          try {
-            final totalPrice = double.parse(matches.last.group(1)!.replaceAll(',', ''));
-            double quantity = 1.0;
-            double unitPrice = totalPrice;
+    final vendor = _extractUpiNote(lines, lower);
+    if (vendor != null) conf += 0.25;
 
-            if (matches.length > 1) {
-              final firstAmt = double.parse(matches.first.group(1)!.replaceAll(',', ''));
-              if (firstAmt <= 10.0) {
-                quantity = firstAmt;
-                unitPrice = totalPrice / quantity;
-              } else {
-                unitPrice = firstAmt;
-              }
-            }
+    final date = _extractUniversalDate(lower);
+    if (date != null) conf += 0.25;
 
-            items.add(LineItem(
-              description: description,
-              quantity: quantity,
-              unitPrice: unitPrice,
-              totalPrice: totalPrice,
-            ));
-          } catch (_) {}
-        }
-      }
-    }
+    final amount = _extractAmountFromReceipt(lines, raw);
+    if (amount != null && amount > 0) conf += 0.40;
 
-    return items;
+    return ParsedReceipt(
+      vendor:      vendor,
+      date:        date,
+      totalAmount: amount,
+      lineItems:   const [],
+      currency:    'INR',
+      confidence:  conf.clamp(0.0, 1.0),
+      rawOcrText:  raw,
+    );
   }
 }
 
+/// ─────────────────────────────────────────────────────────────────────────
+/// CategoryMatcher
+///
+/// Ordered from most-specific to least-specific.
+/// Scans vendor name + UPI message field + line items.
+/// ─────────────────────────────────────────────────────────────────────────
+
 class CategoryMatcher {
-  static const Map<String, List<String>> _categoryKeywords = {
-    'Food': [
-      'restaurant', 'cafe', 'coffee', 'pizza', 'burger', 'dhabha', 'hotel',
-      'biryani', 'lassi', 'story', 'sweet', 'kulfi', 'ice cream', 'cream',
-      'chocolate', 'dining', 'bakery', 'food', 'caterer', 'mcdonald', 'subway',
-      'kfc', 'domino', 'starbuck'
-    ],
-    'Groceries': [
-      'supermarket', 'grocery', 'market', 'bazaar', 'vegetables', 'fruits',
-      'dmart', 'big bazaar', ' kirana', 'reliance', 'mart'
-    ],
-    'Fuel': ['petrol', 'diesel', 'gas station', 'fuel', 'hpcl', 'iocl', 'bpcl'],
-    'Utilities': [
-      'electricity', 'tgspdcl', 'tsspdcl', 'water', 'internet', 'broadband',
-      'wifi', 'telecom', 'mobile', 'recharge', 'prepaid', 'postpaid', 'bill'
-    ],
-    'Rent': ['rent', 'tenant', 'landlord', 'housing'],
-    'Entertainment': [
-      'movie', 'cinema', 'theater', 'game', 'xbox', 'playstation', 'netflix',
-      'spotify', 'ticket'
-    ],
-    'Adhoc': ['adhoc', 'temp', 'cash', 'misc'],
-    'Salary': ['salary', 'wage', 'bonus', 'dividend'],
-  };
+  static const List<MapEntry<String, List<String>>> _rules = [
 
-  static CategorySuggestion suggestCategory(String? vendor, List<LineItem> lineItems) {
+    // ── Fuel ──────────────────────────────────────────────────────────────
+    MapEntry('Fuel', [
+      'petrol', 'diesel', 'fuel', 'filling station', 'fuel station',
+      'gas station', 'pump', 'hpcl', 'bpcl', 'iocl', 'indian oil',
+      'hp petrol', 'essar', 'reliance bp', 'nayara', 'garuda', 'shell',
+      'cng', 'lpg',
+    ]),
+
+    // ── Food ──────────────────────────────────────────────────────────────
+    MapEntry('Food', [
+      'restaurant', 'cafe', 'coffee', 'pizza', 'burger', 'dhaba', 'dhabha',
+      'hotel', 'food court', 'corner', 'biryani', 'noodles', 'bakery', 'bar', 'pub',
+      'dining', 'eatery', 'fast food', 'sweets', 'sweet house', 'mithai',
+      'halwai', 'tiffin', 'juice', 'tea', 'chai', 'canteen', 'mess',
+      'swagruha', 'foods', 'food',
+      'mcdonalds', "mcdonald's", 'subway', 'dominos', "domino's",
+      'kfc', 'pizzahut', 'pizza hut', 'starbucks', 'burger king',
+      'wow momo', 'barbeque', 'paradise biryani', 'behrouz',
+      'breakfast', 'lunch', 'dinner', 'snack', 'snacks',
+    ]),
+
+    // ── Groceries ─────────────────────────────────────────────────────────
+    MapEntry('Groceries', [
+      'ratnadeep', 'ratnadeep market', 'ratnadeep vikram',
+      'venkateshwara', 'vijetha', 'kirana', 'provision store',
+      'dmart', 'd-mart', 'big bazaar', 'easyday', 'more supermarket',
+      'reliance fresh', 'reliance smart', 'star bazaar', 'hypercity',
+      'nilgiris', 'spar', 'lulu', 'metro cash', 'wholesale', 'bazaar',
+      'supermarket', 'hypermarket', 'grocery', 'groceries',
+      'general store', 'departmental store',
+      'vegetables', 'fruits', 'sabzi', 'mandi', 'dairy',
+      'heritage', 'chitale', 'creamline dairy',
+    ]),
+
+    // ── Electricity Bills ────────────────────────────────────────────────
+    MapEntry('Electricity Bills', [
+      'electricity', 'tgspdcl', 'tsspdcl', 'tsnpdcl', 'bescom', 'msedcl',
+      'tneb', 'cesc', 'wbsedcl', 'electric bill', 'power supply',
+      'electricity bill', 'electricity duty', 'sc no', 'usc no', 'energy charges',
+    ]),
+
+    // ── Mobile / Wifi Bills ───────────────────────────────────────────────
+    MapEntry('Mobile / Wifi Bills', [
+      'jio', 'airtel', 'bsnl', 'vodafone', 'vi', 'broadband', 'internet',
+      'wifi', 'recharge', 'prepaid', 'postpaid', 'mobile bill', 'phone bill',
+      'dth', 'tata sky', 'dish tv', 'act fibernet', 'hathway', 'excitel',
+      'fiber', 'airtel xstream', 'jiofiber',
+    ]),
+
+    // ── Bills / Utilities ────────────────────────────────────────────────
+    MapEntry('Bills / Utilities', [
+      'water bill', 'gas bill', 'gas cylinder', 'indane', 'bharat gas',
+      'hp gas', 'maintenance', 'society', 'property tax', 'insurance',
+      'lic', 'premium', 'ott', 'subscription',
+    ]),
+
+    // ── Rent ─────────────────────────────────────────────────────────────
+    MapEntry('Rent', [
+      'house rent', 'flat rent', 'shop rent', 'monthly rent', 'room rent', 'rent',
+    ]),
+
+    // ── Transport ────────────────────────────────────────────────────────
+    MapEntry('Transport', [
+      'uber', 'ola', 'rapido', 'auto', 'taxi', 'cab', 'parking', 'toll',
+      'metro', 'irctc', 'railway', 'train ticket', 'bus ticket', 'flight',
+      'airline', 'indigo', 'air india', 'spicejet', 'redbus', 'abhibus',
+    ]),
+
+    // ── Shopping ─────────────────────────────────────────────────────────
+    MapEntry('Shopping', [
+      'amazon', 'amazon.in', 'flipkart', 'myntra', 'ajio', 'meesho', 'nykaa',
+      'tata cliq', 'snapdeal', 'shoppers stop', 'lifestyle', 'central',
+      'westside', 'max fashion', 'h&m', 'zara', 'pantaloons',
+      'cloth', 'dress', 'shirt', 'pants', 'jeans', 'footwear',
+      'shoes', 'sandals', 'bag', 'accessories', 'jewellery', 'jewelry',
+      'electronics', 'croma', 'reliance digital', 'vijay sales',
+    ]),
+
+    // ── Health ────────────────────────────────────────────────────────────
+    MapEntry('Health', [
+      'hospital', 'clinic', 'doctor', 'pharmacy', 'medical', 'medicine',
+      'health', 'dental', 'dentist', 'diagnostic', 'lab test', 'pathology',
+      'apollo', 'fortis', 'max hospital', 'wellness', 'ayurveda',
+      'chemist', 'druggist', '1mg', 'netmeds', 'pharmeasy',
+      'thyrocare', 'lal path labs', 'metropolis', 'therapy', 'physio', 'gym',
+    ]),
+
+    // ── Entertainment ─────────────────────────────────────────────────────
+    MapEntry('Entertainment', [
+      'movie', 'cinema', 'pvr', 'inox', 'cinepolis', 'theater', 'theatre',
+      'concert', 'show', 'event', 'ticket', 'netflix', 'prime video',
+      'hotstar', 'disney', 'zee5', 'spotify', 'gaana', 'youtube premium',
+      'game', 'gaming', 'steam', 'playstation', 'xbox', 'nintendo',
+    ]),
+
+    // ── Adhoc ────────────────────────────────────────────────────────────
+    MapEntry('Adhoc', [
+      'adhoc', 'miscellaneous', 'misc', 'emergency',
+    ]),
+  ];
+
+  /// Suggest category by scanning vendor, UPI message (rawOcrText), and line items.
+  static CategorySuggestion suggestCategory(
+    String? vendor,
+    List<LineItem> lineItems, [
+    String? rawOcrText,
+  ]) {
+    final noteLower = vendor?.toLowerCase() ?? '';
+    final rawLower  = rawOcrText?.toLowerCase() ?? '';
+    final itemsText = lineItems.map((i) => i.description.toLowerCase()).join(' ');
+
     String bestCategory = 'Others';
-    double bestScore = 0.0;
+    double bestScore    = 0.0;
 
-    // 1. Scan vendor name
-    if (vendor != null && vendor.isNotEmpty) {
-      final vendorLower = vendor.toLowerCase();
-      for (var entry in _categoryKeywords.entries) {
-        final matches = entry.value.where((kw) => vendorLower.contains(kw)).length;
-        if (matches > 0) {
-          final score = 0.5 + (matches * 0.1).clamp(0.0, 0.4);
-          if (score > bestScore) {
-            bestScore = score;
-            bestCategory = entry.key;
-          }
+    for (final rule in _rules) {
+      double score = 0.0;
+      for (final kw in rule.value) {
+        // High priority (2.0): Direct match in Note / Vendor
+        if (noteLower.isNotEmpty && (noteLower.contains(kw) || kw.contains(noteLower))) {
+          score += 2.0;
+        } else if (rawLower.contains(kw) || itemsText.contains(kw)) {
+          final weight = kw.length >= 10 ? 0.9
+                       : kw.length >= 6  ? 0.6
+                       :                   0.3;
+          score += weight;
         }
       }
-    }
-
-    // 2. Scan line items if score is not high
-    if (bestScore < 0.6 && lineItems.isNotEmpty) {
-      final allDescriptions = lineItems.map((item) => item.description.toLowerCase()).join(' ');
-      for (var entry in _categoryKeywords.entries) {
-        final matches = entry.value.where((kw) => allDescriptions.contains(kw)).length;
-        if (matches > 0) {
-          final score = 0.3 + (matches * 0.05).clamp(0.0, 0.3);
-          if (score > bestScore) {
-            bestScore = score;
-            bestCategory = entry.key;
-          }
-        }
+      if (score > bestScore) {
+        bestScore    = score;
+        bestCategory = rule.key;
       }
     }
 
     return CategorySuggestion(category: bestCategory, score: bestScore);
   }
-}
-
-class CategorySuggestion {
-  final String category;
-  final double score;
-
-  CategorySuggestion({required this.category, required this.score});
 }

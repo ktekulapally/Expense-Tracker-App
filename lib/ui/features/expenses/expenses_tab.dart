@@ -35,17 +35,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
   final OCRService _ocrService = OCRService();
   bool _isOcrLoading = false;
 
-  final List<String> _categories = [
-    'Groceries',
-    'Fuel',
-    'Adhoc',
-    'Rent',
-    'Food',
-    'Utilities',
-    'Entertainment',
-    'Salary',
-    'Others'
-  ];
+  final List<String> _categories = MainLedgerViewModel.defaultExpenseCategories;
 
   void _showScanOptions(BuildContext context) {
     final colors = AppTheme.expensesColors;
@@ -128,7 +118,7 @@ class _ExpensesTabState extends State<ExpensesTab> {
               _dateController.text = DateFormat('yyyy-MM-dd').format(parsedDate);
             } catch (_) {}
           }
-          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems);
+          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems, parsed.rawOcrText);
           if (_categories.contains(suggestion.category)) {
             _selectedCategory = suggestion.category;
           } else {

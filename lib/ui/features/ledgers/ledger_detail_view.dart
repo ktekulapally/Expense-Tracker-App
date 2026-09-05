@@ -123,7 +123,7 @@ class _LedgerDetailViewState extends State<LedgerDetailView> with SingleTickerPr
             } catch (_) {}
           }
           // Suggest dynamic categories in custom ledger
-          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems);
+          final suggestion = CategoryMatcher.suggestCategory(parsed.vendor, parsed.lineItems, parsed.rawOcrText);
           final dynamicCategories = _viewModel.categories.map((c) => c.name).toList();
 
           if (dynamicCategories.isNotEmpty) {

@@ -29,13 +29,18 @@ class _RecurringTabState extends State<RecurringTab> {
   RecurringExpense? _editingTemplate;
 
   final List<String> _categories = [
-    'Utilities',
-    'Rent',
     'Groceries',
-    'Fuel',
-    'Adhoc',
     'Food',
+    'Fuel',
+    'Electricity Bills',
+    'Mobile / Wifi Bills',
+    'Shopping',
+    'Transport',
+    'Health',
+    'Bills / Utilities',
+    'Rent',
     'Entertainment',
+    'Adhoc',
     'Others'
   ];
 
