@@ -39,6 +39,7 @@ class Expense {
 
   Map<String, dynamic> toJson() {
     return {
+      if (userId.isNotEmpty) 'user_id': userId,
       'expense_date': DateFormat('yyyy-MM-dd').format(expenseDate),
       'category': category,
       'description': description,
@@ -85,6 +86,7 @@ class Income {
 
   Map<String, dynamic> toJson() {
     return {
+      if (userId.isNotEmpty) 'user_id': userId,
       'income_date': DateFormat('yyyy-MM-dd').format(incomeDate),
       'source': source,
       'amount': amount,

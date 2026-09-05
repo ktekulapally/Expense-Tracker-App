@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum AppTab { expenses, income, ledgers, recurring, insights }
+enum AppTab { expenses, income, ledgers, recurring, insights, charts }
 
 class AppThemeColors {
   final Color paper;
@@ -88,6 +88,18 @@ class AppTheme {
     card: Color(0xFFF5FAFA),
   );
 
+  static const AppThemeColors chartsColors = AppThemeColors(
+    paper: Color(0xFFFBF8F1),
+    paperLine: Color(0xFFE8DFC9),
+    ink: Color(0xFF1C2B3A),
+    inkSoft: Color(0xFF5A6673),
+    brass: Color(0xFFB9863F),
+    brassDark: Color(0xFF8F6529),
+    red: Color(0xFFA6432D),
+    green: Color(0xFF2E7D32),
+    card: Color(0xFFFFFFFF),
+  );
+
   static AppThemeColors getColors(AppTab tab) {
     switch (tab) {
       case AppTab.expenses:
@@ -100,6 +112,8 @@ class AppTheme {
         return ledgersColors;
       case AppTab.insights:
         return insightsColors;
+      case AppTab.charts:
+        return chartsColors;
     }
   }
 

@@ -30,6 +30,9 @@ class BackgroundPainter extends CustomPainter {
       case AppTab.insights:
         _paintInsights(canvas, size, paint);
         break;
+      case AppTab.charts:
+        _paintExpenses(canvas, size, paint);
+        break;
     }
   }
 

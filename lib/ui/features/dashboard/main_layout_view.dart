@@ -9,6 +9,7 @@ import '../income/income_tab.dart';
 import '../ledgers/ledgers_tab.dart';
 import '../recurring/recurring_tab.dart';
 import '../insights/ai_advisor_tab.dart';
+import '../charts/bento_expense_chart_view.dart';
 
 class MainLayoutView extends StatefulWidget {
   const MainLayoutView({super.key});
@@ -26,7 +27,25 @@ class _MainLayoutViewState extends State<MainLayoutView> {
     const LedgersTab(),
     const RecurringTab(),
     const AiAdvisorTab(),
+    const BentoExpenseChartView(),
   ];
+
+  String _getSubtitle() {
+    switch (_currentTab) {
+      case AppTab.expenses:
+        return "Daily Record";
+      case AppTab.income:
+        return "Cash Flow";
+      case AppTab.ledgers:
+        return "Custom Books";
+      case AppTab.recurring:
+        return "Reminders";
+      case AppTab.insights:
+        return "AI Advisor";
+      case AppTab.charts:
+        return "Visual Summary";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,19 +72,11 @@ class _MainLayoutViewState extends State<MainLayoutView> {
               children: [
                 // Global Masthead Header
                 Padding(
-                  padding: const EdgeInsets.only(top: 20, bottom: 12),
+                  padding: const EdgeInsets.only(top: 16, bottom: 8),
                   child: Column(
                     children: [
                       Text(
-                        _currentTab == AppTab.expenses
-                            ? "Daily Record"
-                            : (_currentTab == AppTab.income
-                                ? "Cash Flow"
-                                : (_currentTab == AppTab.ledgers
-                                    ? "Custom Books"
-                                    : (_currentTab == AppTab.recurring
-                                        ? "Reminders"
-                                        : "Analysis"))),
+                        _getSubtitle(),
                         style: AppTheme.getMonoStyle(colors, size: 11, weight: FontWeight.w600).copyWith(
                           color: colors.brassDark,
                           letterSpacing: 2.0,
@@ -74,9 +85,9 @@ class _MainLayoutViewState extends State<MainLayoutView> {
                       const SizedBox(height: 4),
                       Text(
                         "Personal Ledger",
-                        style: AppTheme.getHeadingStyle(colors).copyWith(fontSize: 28),
+                        style: AppTheme.getHeadingStyle(colors).copyWith(fontSize: 26),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
                         width: 48,
                         height: 3,
@@ -91,7 +102,7 @@ class _MainLayoutViewState extends State<MainLayoutView> {
 
                 // Signed-in User Info & Sign-out (Toolbar style)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -106,7 +117,9 @@ class _MainLayoutViewState extends State<MainLayoutView> {
                         onPressed: () => authViewModel.signOut(),
                         style: TextButton.styleFrom(
                           foregroundColor: colors.inkSoft,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
                           "Sign out",
@@ -141,34 +154,39 @@ class _MainLayoutViewState extends State<MainLayoutView> {
           type: BottomNavigationBarType.fixed,
           backgroundColor: colors.card,
           selectedItemColor: colors.ink,
-          unselectedItemColor: colors.inkSoft.withOpacity(0.6),
-          selectedLabelStyle: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 11),
-          unselectedLabelStyle: AppTheme.getBodyStyle(colors, weight: FontWeight.w500, size: 11),
+          unselectedItemColor: colors.inkSoft.withValues(alpha: 0.6),
+          selectedLabelStyle: AppTheme.getBodyStyle(colors, weight: FontWeight.w600, size: 10),
+          unselectedLabelStyle: AppTheme.getBodyStyle(colors, weight: FontWeight.w500, size: 10),
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              activeIcon: Icon(Icons.account_balance_wallet),
+              icon: Icon(Icons.account_balance_wallet_outlined, size: 20),
+              activeIcon: Icon(Icons.account_balance_wallet, size: 20),
               label: 'Expenses',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.trending_up_outlined),
-              activeIcon: Icon(Icons.trending_up),
+              icon: Icon(Icons.trending_up_outlined, size: 20),
+              activeIcon: Icon(Icons.trending_up, size: 20),
               label: 'Income',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.book_outlined),
-              activeIcon: Icon(Icons.book),
+              icon: Icon(Icons.book_outlined, size: 20),
+              activeIcon: Icon(Icons.book, size: 20),
               label: 'Ledgers',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.alarm_outlined),
-              activeIcon: Icon(Icons.alarm),
+              icon: Icon(Icons.alarm_outlined, size: 20),
+              activeIcon: Icon(Icons.alarm, size: 20),
               label: 'Recurring',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.insights_outlined),
-              activeIcon: Icon(Icons.insights),
+              icon: Icon(Icons.insights_outlined, size: 20),
+              activeIcon: Icon(Icons.insights, size: 20),
               label: 'Advisor',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_outlined, size: 20),
+              activeIcon: Icon(Icons.grid_view_rounded, size: 20),
+              label: 'Charts',
             ),
           ],
         ),

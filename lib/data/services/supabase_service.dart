@@ -3,7 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models.dart';
 
 class SupabaseService {
-  final SupabaseClient _client = Supabase.instance.client;
+  final SupabaseClient? _customClient;
+  SupabaseService([this._customClient]);
+
+  SupabaseClient get _client => _customClient ?? Supabase.instance.client;
 
   // Credentials are hardcoded matching the web application configuration
   static const String supabaseUrl = "https://zmklfmlppceiulaybjga.supabase.co";
