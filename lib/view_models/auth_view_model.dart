@@ -58,6 +58,8 @@ class AuthViewModel extends ChangeNotifier {
       } else {
         await _service.signIn(email.trim(), password);
       }
+    } on AuthException catch (e) {
+      _errorMessage = e.message;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception:', '').trim();
     } finally {
@@ -81,6 +83,8 @@ class AuthViewModel extends ChangeNotifier {
     try {
       await _service.resetPassword(email.trim());
       _infoMessage = 'Password reset link sent to $email. Check your inbox (and spam folder).';
+    } on AuthException catch (e) {
+      _errorMessage = e.message;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception:', '').trim();
     } finally {
@@ -88,6 +92,7 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   Future<void> signOut() async {
     _isLoading = true;
