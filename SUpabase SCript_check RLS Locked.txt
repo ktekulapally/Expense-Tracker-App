@@ -1,0 +1,31 @@
+-- 1. Enable RLS on all tables
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE income ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ledgers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ledger_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notification_settings ENABLE ROW LEVEL SECURITY;
+
+-- 2. Create Policy: Users can only see and manage their own expenses
+CREATE POLICY "Users can only access their own expenses" 
+ON expenses FOR ALL 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+-- 3. Create Policy: Users can only access their own income
+CREATE POLICY "Users can only access their own income" 
+ON income FOR ALL 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+-- 4. Create Policy: Users can only access their own custom ledgers
+CREATE POLICY "Users can only access their own ledgers" 
+ON ledgers FOR ALL 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
+
+-- 5. Create Policy: Users can only access their own recurring templates
+CREATE POLICY "Users can only access their own recurring" 
+ON recurring_expenses FOR ALL 
+USING (auth.uid() = user_id) 
+WITH CHECK (auth.uid() = user_id);
