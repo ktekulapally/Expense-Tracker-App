@@ -405,7 +405,9 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
                     ),
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      value: categories.contains(_selectedCategory)
+                          ? _selectedCategory
+                          : (categories.isNotEmpty ? categories.first : null),
                       isDense: true,
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -434,6 +436,7 @@ class _BentoExpenseChartViewState extends State<BentoExpenseChartView> {
                         if (val != null) setState(() => _selectedCategory = val);
                       },
                     ),
+
                   ],
                 ),
               ),

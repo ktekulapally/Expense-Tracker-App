@@ -205,6 +205,10 @@ class AppDropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if the current value exists in items to avoid Flutter dropdown assertion errors
+    final bool hasMatch = items.any((item) => item.value == value);
+    final T? safeValue = hasMatch ? value : (items.isNotEmpty ? items.first.value : null);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -222,7 +226,7 @@ class AppDropdownField<T> extends StatelessWidget {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
-              value: value,
+              value: safeValue,
               isExpanded: true,
               icon: Icon(Icons.arrow_drop_down, color: colors.inkSoft),
               style: AppTheme.getBodyStyle(colors, size: 14),
@@ -235,6 +239,7 @@ class AppDropdownField<T> extends StatelessWidget {
     );
   }
 }
+
 
 Future<bool?> showConfirmDialog({
   required BuildContext context,

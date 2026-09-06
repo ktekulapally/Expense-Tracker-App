@@ -79,6 +79,21 @@ class MainLedgerViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reset() {
+    _allExpenses = [];
+    _allIncome = [];
+    _expenseMonthFilter = 'all';
+    _expenseCategoryFilter = 'all';
+    _expenseSearchQuery = '';
+    _incomeMonthFilter = 'all';
+    _incomeSourceFilter = 'all';
+    _incomeSearchQuery = '';
+    _monthExpensesTotal = 0.0;
+    _monthIncomeTotal = 0.0;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   // Load Data
   Future<void> loadData() async {
     _isLoading = true;
@@ -95,6 +110,20 @@ class MainLedgerViewModel extends ChangeNotifier {
       _allIncome = results[1] as List<Income>;
 
       _calculateStats();
+
+      // Ensure active filter values are valid for current data
+      if (_expenseMonthFilter != 'all' && !expenseMonths.contains(_expenseMonthFilter)) {
+        _expenseMonthFilter = 'all';
+      }
+      if (_expenseCategoryFilter != 'all' && !expenseCategories.contains(_expenseCategoryFilter)) {
+        _expenseCategoryFilter = 'all';
+      }
+      if (_incomeMonthFilter != 'all' && !incomeMonths.contains(_incomeMonthFilter)) {
+        _incomeMonthFilter = 'all';
+      }
+      if (_incomeSourceFilter != 'all' && !incomeSources.contains(_incomeSourceFilter)) {
+        _incomeSourceFilter = 'all';
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception:', '').trim();
     } finally {
@@ -102,6 +131,7 @@ class MainLedgerViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   // Filtered lists
   List<Expense> get filteredExpenses {
